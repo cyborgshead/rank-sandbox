@@ -1,0 +1,216 @@
+package main
+
+
+import (
+	"fmt"
+	"math"
+	"sync"
+	"math/rand"
+	"sort"
+	"strconv"
+	"time"
+	"github.com/spf13/cobra"
+)
+
+type CidNumber uint64
+type AccNumber uint64
+type Links map[CidNumber]CidLinks
+type CidLinks map[CidNumber]map[AccNumber]struct{}
+
+func RandSeed() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+func RunBenchCmd() *cobra.Command {
+
+	cmd := &cobra.Command{
+		Use:   "run-bench <stakesCount> <cidsCount> <tolerance> <cidsCount>",
+		Short: "Run cyberrank with different graph and algorithm params",
+		Args:  cobra.ExactArgs(4),
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			RandSeed()
+
+			// options for command line
+			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
+			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
+			tolerance, _ := strconv.ParseFloat(args[2], 64)
+			dampingFactor, _ := strconv.ParseFloat(args[3], 64)
+
+			start := time.Now()
+
+			// ________
+			fmt.Println(stakesCount)
+			fmt.Println(cidsCount)
+			fmt.Println(tolerance)
+			fmt.Println(dampingFactor)
+			// ________
+
+			cidShuf := make([]CidNumber, cidsCount)
+			for index, _ := range cidShuf {
+				cidShuf[index] = CidNumber(index)
+			}
+
+			cidSrc := make([]CidNumber, cidsCount)
+			for index, _ := range cidSrc {
+				cidSrc[index] = CidNumber(index)
+			}
+
+			outLinks := make(Links)
+			inLinks := make(Links)
+
+			for i := 0; i < int(stakesCount); i++ {
+				for _, src := range cidSrc {
+					ps := rand.Perm(int(cidsCount))
+					for i, j := range ps {
+						cidShuf[i] = cidSrc[j]
+					}
+					if _, exists := outLinks[src]; !exists {
+						outLinks[src] = make(CidLinks)
+					}
+					for _, dst := range cidShuf {
+						if dst != src {
+							outLinks.Put(src, dst, AccNumber(uint64(i)))
+							inLinks.Put(dst, src, AccNumber(uint64(i)))
+						}
+					}
+				}
+			}
+
+			fmt.Println("Graph generation", "time", time.Since(start))
+
+			linksCount := uint64(0)
+			//rank := make([]float64, cidsCount)
+			inLinksCount := make([]uint32, cidsCount)
+			outLinksCount := make([]uint32, cidsCount)
+			inLinksOuts := make([]uint64, 0)
+			inLinksUsers := make([]uint64, 0)
+			outLinksUsers := make([]uint64, 0)
+			stakes := make([]uint64, stakesCount)
+			for acc := range stakes {
+				stakes[acc] = uint64(rand.Intn(10) + 1)
+			}
+
+			start = time.Now()
+
+			ch := make(chan int64, 100000)
+			var wg sync.WaitGroup
+			var lock1 sync.Mutex
+			var lock2 sync.Mutex
+			wg.Add(int(cidsCount))
+
+			f := func(i int64) {
+				defer wg.Done()
+				if inLinks, sortedCids, ok := GetSortedInLinks(inLinks, CidNumber(i)); ok {
+					for _, cid := range sortedCids {
+						inLinksCount[i] += uint32(len(inLinks[cid]))
+						for acc := range inLinks[cid] {
+							lock2.Lock()
+							inLinksOuts = append(inLinksOuts, uint64(cid))
+							inLinksUsers = append(inLinksUsers, uint64(acc))
+							lock2.Unlock()
+						}
+					}
+					linksCount += uint64(inLinksCount[i])
+				}
+
+				if outLinks, ok := outLinks[CidNumber(i)]; ok {
+					for _, accs := range outLinks {
+						outLinksCount[i] += uint32(len(accs))
+						for acc := range accs {
+							lock1.Lock()
+							outLinksUsers = append(outLinksUsers, uint64(acc))
+							lock1.Unlock()
+						}
+					}
+				}
+			}
+
+			countWorkers := int64(math.Min(10000, float64(cidsCount)))
+
+			for i:=int64(0); i < countWorkers; i++ {
+				go func() {
+					var cid int64
+					for {
+						cid = <- ch
+						f(cid)
+					}
+				}()
+			}
+
+			for i := int64(0); i < int64(cidsCount); i++ {
+				ch <- i
+			}
+
+			wg.Wait()
+
+			fmt.Println("Data preparation", "time", time.Since(start))
+
+			// /* Convert to C types */
+			// cStakes := (*C.ulong)(&stakes[0])
+
+			// cStakesSize := C.ulong(len(stakes))
+			// cCidsSize := C.ulong(len(inLinksCount))
+			// cLinksSize := C.ulong(len(inLinksOuts))
+
+			// cInLinksCount := (*C.uint)(&inLinksCount[0])
+			// cOutLinksCount := (*C.uint)(&outLinksCount[0])
+
+			// cInLinksOuts := (*C.ulong)(&inLinksOuts[0])
+			// cInLinksUsers := (*C.ulong)(&inLinksUsers[0])
+			// cOutLinksUsers := (*C.ulong)(&outLinksUsers[0])
+
+			// cDampingFactor := C.double(dampingFactor)
+			// cTolerance := C.double(tolerance)
+
+			start = time.Now()
+
+			// start = time.Now()
+			// cRank := (*C.double)(&rank[0])
+			// C.calculate_rank(
+			// 	cStakes, cStakesSize, cCidsSize, cLinksSize,
+			// 	cInLinksCount, cOutLinksCount,
+			// 	cInLinksOuts, cInLinksUsers, cOutLinksUsers,
+			// 	cRank, cDampingFactor, cTolerance,
+			// )
+			fmt.Println("Rank calculation", "time", time.Since(start))
+
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+func (links Links) Put(from CidNumber, to CidNumber, acc AccNumber) {
+	cidLinks := links[from]
+	if cidLinks == nil {
+		cidLinks = make(CidLinks)
+	}
+	users := cidLinks[to]
+	if users == nil {
+		users = make(map[AccNumber]struct{})
+	}
+	users[acc] = struct{}{}
+	cidLinks[to] = users
+	links[from] = cidLinks
+}
+
+func GetSortedInLinks(inLinks Links, cid CidNumber) (CidLinks, []CidNumber, bool) {
+	links := inLinks[cid]
+
+	if len(links) == 0 {
+		return nil, nil, false
+	}
+
+	numbers := make([]CidNumber, 0, len(links))
+	for num := range links {
+		numbers = append(numbers, num)
+	}
+
+	sort.Slice(numbers, func(i, j int) bool { return numbers[i] < numbers[j] })
+
+	return links, numbers, true
+}
+
+
