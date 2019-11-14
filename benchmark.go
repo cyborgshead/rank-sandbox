@@ -63,25 +63,13 @@ func RunBenchCmd() *cobra.Command {
 			outLinks := make(Links)
 			inLinks := make(Links)
 
-			// need to implement other generator for bigger graphs
 			for i := 0; i < int(stakesCount); i++ {
-				//for _, src := range cidSrc {
-				ps := rand.Perm(int(cidsCount))
-				for i, j := range ps {
-					cidShuf[i] = cidSrc[j]
-				}
-				for indexSrc, src := range cidSrc {
-					if indexSrc % 10000 != 0 { continue }
-					if _, exists := outLinks[src]; !exists {
-						outLinks[src] = make(CidLinks)
-					}
-					for indexShuf, dst := range cidShuf {
-						//if dst != src {
-						//if dst != src && dst % 3 == 0 {
-						if indexShuf % 2 == 0 && dst != src {
-							outLinks.Put(src, dst, AccNumber(uint64(i)))
-							inLinks.Put(dst, src, AccNumber(uint64(i)))
-						}
+				for i := 0; i < 5000; i++ {
+					src := rand.Int63n(cidsCount)
+					dst := rand.Int63n(cidsCount)
+					if src != dst {
+						outLinks.Put(CidNumber(src), CidNumber(dst), AccNumber(uint64(i)))
+						inLinks.Put(CidNumber(dst), CidNumber(src), AccNumber(uint64(i)))
 					}
 				}
 			}
@@ -90,13 +78,16 @@ func RunBenchCmd() *cobra.Command {
 
 			start = time.Now()
 
+			missed := int(0)
 	 		for i := 0; i < int(cidsCount); i++ {
 				if _, ok := outLinks[CidNumber(i)]; !ok {
 					if _, ok := inLinks[CidNumber(i)]; !ok {
-						fmt.Println("Failed generation, no output/input links on CIDs: ", i)
+						//fmt.Println("Failed generation, no output/input links on CIDs: ", i)
+						missed++
 					}
 				}
 			}
+	 		fmt.Println("Missed: ", missed)
 			fmt.Println("Graph validation", "time", time.Since(start))
 
 			linksCount := uint64(0)
