@@ -2,16 +2,13 @@
 
 package main
 
-
 import (
 	"fmt"
-	"math"
-	"sync"
+	"github.com/spf13/cobra"
 	"math/rand"
 	"sort"
 	"strconv"
 	"time"
-	"github.com/spf13/cobra"
 )
 
 /*
@@ -43,15 +40,15 @@ func RunBenchCmd() *cobra.Command {
 
 			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
 			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
-			tolerance, _ := strconv.ParseFloat(args[2], 64)
-			dampingFactor, _ := strconv.ParseFloat(args[3], 64)
+			dampingFactor, _ := strconv.ParseFloat(args[2], 64)
+			tolerance, _ := strconv.ParseFloat(args[3], 64)
 
 			start := time.Now()
 
 			fmt.Println("Agents: ", stakesCount)
 			fmt.Println("CIDs: ", cidsCount)
-			fmt.Println("Tolerance: ", tolerance)
 			fmt.Println("Damping: ", dampingFactor)
+			fmt.Println("Tolerance: ", tolerance)
 
 			cidShuf := make([]CidNumber, cidsCount)
 			for index, _ := range cidShuf {
@@ -66,14 +63,15 @@ func RunBenchCmd() *cobra.Command {
 			outLinks := make(Links)
 			inLinks := make(Links)
 
+			// need to implement other generator for bigger graphs
 			for i := 0; i < int(stakesCount); i++ {
 				//for _, src := range cidSrc {
+				ps := rand.Perm(int(cidsCount))
+				for i, j := range ps {
+					cidShuf[i] = cidSrc[j]
+				}
 				for indexSrc, src := range cidSrc {
-					if indexSrc % 10 != 0 { continue }
-					ps := rand.Perm(int(cidsCount))
-					for i, j := range ps {
-						cidShuf[i] = cidSrc[j]
-					}
+					if indexSrc % 10000 != 0 { continue }
 					if _, exists := outLinks[src]; !exists {
 						outLinks[src] = make(CidLinks)
 					}
@@ -108,29 +106,24 @@ func RunBenchCmd() *cobra.Command {
 			inLinksOuts := make([]uint64, 0)
 			inLinksUsers := make([]uint64, 0)
 			outLinksUsers := make([]uint64, 0)
+
 			stakes := make([]uint64, stakesCount)
 			for acc := range stakes {
 				stakes[acc] = uint64(rand.Intn(10) + 1)
 			}
 
+
 			start = time.Now()
 
-			ch := make(chan int64, 100000)
-			var wg sync.WaitGroup
-			var lock1 sync.Mutex
-			var lock2 sync.Mutex
-			wg.Add(int(cidsCount))
 
-			f := func(i int64) {
-				defer wg.Done()
+			for i := int64(0); i < cidsCount; i++ {
+
 				if inLinks, sortedCids, ok := GetSortedInLinks(inLinks, CidNumber(i)); ok {
 					for _, cid := range sortedCids {
 						inLinksCount[i] += uint32(len(inLinks[cid]))
 						for acc := range inLinks[cid] {
-							lock2.Lock()
 							inLinksOuts = append(inLinksOuts, uint64(cid))
 							inLinksUsers = append(inLinksUsers, uint64(acc))
-							lock2.Unlock()
 						}
 					}
 					linksCount += uint64(inLinksCount[i])
@@ -140,34 +133,15 @@ func RunBenchCmd() *cobra.Command {
 					for _, accs := range outLinks {
 						outLinksCount[i] += uint32(len(accs))
 						for acc := range accs {
-							lock1.Lock()
 							outLinksUsers = append(outLinksUsers, uint64(acc))
-							lock1.Unlock()
 						}
 					}
 				}
 			}
 
-			countWorkers := int64(math.Min(10000, float64(cidsCount)))
-
-			for i:=int64(0); i < countWorkers; i++ {
-				go func() {
-					var cid int64
-					for {
-						cid = <- ch
-						f(cid)
-					}
-				}()
-			}
-
-			for i := int64(0); i < int64(cidsCount); i++ {
-				ch <- i
-			}
-
-			wg.Wait()
-
 			fmt.Println("Links amount", linksCount)
-			fmt.Println("Data preparation", "time", time.Since(start))
+			fmt.Println("Data preparation without workers", "time", time.Since(start))
+
 
 			cStakes := (*C.ulong)(&stakes[0])
 
