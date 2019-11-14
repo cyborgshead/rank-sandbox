@@ -41,13 +41,17 @@ func RunBenchCmd() *cobra.Command {
 
 			RandSeed()
 
-			// options for command line
 			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
 			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
 			tolerance, _ := strconv.ParseFloat(args[2], 64)
 			dampingFactor, _ := strconv.ParseFloat(args[3], 64)
 
 			start := time.Now()
+
+			fmt.Println("Agents: ", stakesCount)
+			fmt.Println("CIDs: ", cidsCount)
+			fmt.Println("Tolerance: ", tolerance)
+			fmt.Println("Damping: ", dampingFactor)
 
 			cidShuf := make([]CidNumber, cidsCount)
 			for index, _ := range cidShuf {
@@ -63,7 +67,9 @@ func RunBenchCmd() *cobra.Command {
 			inLinks := make(Links)
 
 			for i := 0; i < int(stakesCount); i++ {
-				for _, src := range cidSrc {
+				//for _, src := range cidSrc {
+				for indexSrc, src := range cidSrc {
+					if indexSrc % 10 != 0 { continue }
 					ps := rand.Perm(int(cidsCount))
 					for i, j := range ps {
 						cidShuf[i] = cidSrc[j]
@@ -71,8 +77,10 @@ func RunBenchCmd() *cobra.Command {
 					if _, exists := outLinks[src]; !exists {
 						outLinks[src] = make(CidLinks)
 					}
-					for _, dst := range cidShuf {
-						if dst != src {
+					for indexShuf, dst := range cidShuf {
+						//if dst != src {
+						//if dst != src && dst % 3 == 0 {
+						if indexShuf % 2 == 0 && dst != src {
 							outLinks.Put(src, dst, AccNumber(uint64(i)))
 							inLinks.Put(dst, src, AccNumber(uint64(i)))
 						}
@@ -81,6 +89,17 @@ func RunBenchCmd() *cobra.Command {
 			}
 
 			fmt.Println("Graph generation", "time", time.Since(start))
+
+			start = time.Now()
+
+	 		for i := 0; i < int(cidsCount); i++ {
+				if _, ok := outLinks[CidNumber(i)]; !ok {
+					if _, ok := inLinks[CidNumber(i)]; !ok {
+						fmt.Println("Failed generation, no output/input links on CIDs: ", i)
+					}
+				}
+			}
+			fmt.Println("Graph validation", "time", time.Since(start))
 
 			linksCount := uint64(0)
 			rank := make([]float64, cidsCount)
@@ -147,6 +166,7 @@ func RunBenchCmd() *cobra.Command {
 
 			wg.Wait()
 
+			fmt.Println("Links amount", linksCount)
 			fmt.Println("Data preparation", "time", time.Since(start))
 
 			cStakes := (*C.ulong)(&stakes[0])
