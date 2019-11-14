@@ -77,12 +77,21 @@ func RunBenchCmd() *cobra.Command {
 			fmt.Println("Graph generation", "time", time.Since(start))
 
 			start = time.Now()
-
-			missed := int(0)
 	 		for i := 0; i < int(cidsCount); i++ {
 				if _, ok := outLinks[CidNumber(i)]; !ok {
+					dst := rand.Int63n(cidsCount)
+					agent := rand.Int63n(stakesCount)
+					outLinks.Put(CidNumber(i), CidNumber(dst), AccNumber(uint64(agent)))
+				}
+			}
+			fmt.Println("Graph fixing", "time", time.Since(start))
+
+
+			start = time.Now()
+			missed := int(0)
+			for i := 0; i < int(cidsCount); i++ {
+				if _, ok := outLinks[CidNumber(i)]; !ok {
 					if _, ok := inLinks[CidNumber(i)]; !ok {
-						//fmt.Println("Failed generation, no output/input links on CIDs: ", i)
 						missed++
 					}
 				}
