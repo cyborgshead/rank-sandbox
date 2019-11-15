@@ -122,6 +122,8 @@ func RunBenchCmd() *cobra.Command {
 			fmt.Println("Links amount", linksCount)
 			fmt.Println("Data preparation", "time", time.Since(start))
 
+			outLinks = nil
+			inLinks = nil
 
 			cStakes := (*C.ulong)(&stakes[0])
 
