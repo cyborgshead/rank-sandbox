@@ -72,12 +72,13 @@ func RunBenchCmd() *cobra.Command {
 				if _, ok := outLinks[CidNumber(i)]; !ok {
 					dst := rand.Int63n(cidsCount)
 					agent := rand.Int63n(stakesCount)
-					outLinks.Put(CidNumber(i), CidNumber(dst), AccNumber(uint64(agent)))
+					outLinks.Put(CidNumber(i), CidNumber(dst), AccNumber(agent))
+					inLinks.Put(CidNumber(dst), CidNumber(i), AccNumber(agent))
 					fixed++
 				}
 			}
-			fmt.Println("Added outs: ", fixed)
-			fmt.Println("Graph outs check and filling", "time", time.Since(start))
+			fmt.Println("Added links: ", fixed)
+			fmt.Println("Graph check and filling", "time", time.Since(start))
 
 
 			linksCount := uint64(0)
