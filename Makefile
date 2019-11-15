@@ -19,8 +19,8 @@ build_gpu:
 	$(NVCC) $(NVCCFLAGS) -o $(BUILD_DIR)/libcbdrank.so -shared ./cuda/rank.cu
 
 install_gpu:
-	cp $(BUILD_DIR)/libcbdrank.so /usr/lib
-	cp ./cuda/cbdrank.h /usr/lib
+	sudo cp $(BUILD_DIR)/libcbdrank.so /usr/lib
+	sudo cp ./cuda/cbdrank.h /usr/lib
 
 bench:
 	go build -tags cuda -o cyberrank ./

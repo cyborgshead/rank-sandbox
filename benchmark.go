@@ -31,40 +31,31 @@ func RandSeed() {
 func RunBenchCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "run-bench <stakesCount> <cidsCount> <tolerance> <cidsCount>",
+		Use:   "run-bench <stakesCount> <cidsCount> <linksPerAgent> <dampingFactor> <tolerance>",
 		Short: "Run cyberrank with different graph and algorithm params",
-		Args:  cobra.ExactArgs(4),
+		Args:  cobra.ExactArgs(5),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			RandSeed()
 
 			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
-			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
-			dampingFactor, _ := strconv.ParseFloat(args[2], 64)
-			tolerance, _ := strconv.ParseFloat(args[3], 64)
-
-			start := time.Now()
+			linksPerAgent, _ := strconv.ParseInt(args[1], 10 ,64)
+			cidsCount, _ := strconv.ParseInt(args[2], 10, 64)
+			dampingFactor, _ := strconv.ParseFloat(args[3], 64)
+			tolerance, _ := strconv.ParseFloat(args[4], 64)
 
 			fmt.Println("Agents: ", stakesCount)
+			fmt.Println("Links per agent: ", linksPerAgent)
 			fmt.Println("CIDs: ", cidsCount)
 			fmt.Println("Damping: ", dampingFactor)
 			fmt.Println("Tolerance: ", tolerance)
 
-			cidShuf := make([]CidNumber, cidsCount)
-			for index, _ := range cidShuf {
-				cidShuf[index] = CidNumber(index)
-			}
-
-			cidSrc := make([]CidNumber, cidsCount)
-			for index, _ := range cidSrc {
-				cidSrc[index] = CidNumber(index)
-			}
-
 			outLinks := make(Links)
 			inLinks := make(Links)
 
+			start := time.Now()
 			for i := 0; i < int(stakesCount); i++ {
-				for i := 0; i < 5000; i++ {
+				for i := 0; i < int(linksPerAgent); i++ {
 					src := rand.Int63n(cidsCount)
 					dst := rand.Int63n(cidsCount)
 					if src != dst {
@@ -73,31 +64,21 @@ func RunBenchCmd() *cobra.Command {
 					}
 				}
 			}
-
 			fmt.Println("Graph generation", "time", time.Since(start))
 
 			start = time.Now()
-	 		for i := 0; i < int(cidsCount); i++ {
+			fixed := int(0)
+			for i := 0; i < int(cidsCount); i++ {
 				if _, ok := outLinks[CidNumber(i)]; !ok {
 					dst := rand.Int63n(cidsCount)
 					agent := rand.Int63n(stakesCount)
 					outLinks.Put(CidNumber(i), CidNumber(dst), AccNumber(uint64(agent)))
+					fixed++
 				}
 			}
-			fmt.Println("Graph fixing", "time", time.Since(start))
+			fmt.Println("Added outs: ", fixed)
+			fmt.Println("Graph outs check and filling", "time", time.Since(start))
 
-
-			start = time.Now()
-			missed := int(0)
-			for i := 0; i < int(cidsCount); i++ {
-				if _, ok := outLinks[CidNumber(i)]; !ok {
-					if _, ok := inLinks[CidNumber(i)]; !ok {
-						missed++
-					}
-				}
-			}
-	 		fmt.Println("Missed: ", missed)
-			fmt.Println("Graph validation", "time", time.Since(start))
 
 			linksCount := uint64(0)
 			rank := make([]float64, cidsCount)
@@ -107,15 +88,14 @@ func RunBenchCmd() *cobra.Command {
 			inLinksUsers := make([]uint64, 0)
 			outLinksUsers := make([]uint64, 0)
 
+			start = time.Now()
 			stakes := make([]uint64, stakesCount)
 			for acc := range stakes {
-				stakes[acc] = uint64(rand.Intn(10) + 1)
+				stakes[acc] = uint64(rand.Intn(1000000000) + 100000)
 			}
-
+			fmt.Println("Stakes generation for agents", "time", time.Since(start))
 
 			start = time.Now()
-
-
 			for i := int64(0); i < cidsCount; i++ {
 
 				if inLinks, sortedCids, ok := GetSortedInLinks(inLinks, CidNumber(i)); ok {
@@ -138,9 +118,8 @@ func RunBenchCmd() *cobra.Command {
 					}
 				}
 			}
-
 			fmt.Println("Links amount", linksCount)
-			fmt.Println("Data preparation without workers", "time", time.Since(start))
+			fmt.Println("Data preparation", "time", time.Since(start))
 
 
 			cStakes := (*C.ulong)(&stakes[0])
@@ -158,8 +137,6 @@ func RunBenchCmd() *cobra.Command {
 
 			cDampingFactor := C.double(dampingFactor)
 			cTolerance := C.double(tolerance)
-
-			start = time.Now()
 
 			start = time.Now()
 			cRank := (*C.double)(&rank[0])
