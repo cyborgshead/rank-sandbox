@@ -3,12 +3,16 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"github.com/spf13/cobra"
+	"math"
 	"math/rand"
 	"sort"
 	"strconv"
 	"time"
+	"github.com/cybercongress/cyberd/merkle"
 )
 
 /*
@@ -31,12 +35,13 @@ func RandSeed() {
 func RunBenchCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "run-bench <stakesCount> <cidsCount> <linksPerAgent> <dampingFactor> <tolerance>",
+		Use:   "run-bench <stakesCount> <linksPerAgent> <cidsCount> <dampingFactor> <tolerance>",
 		Short: "Run cyberrank with different graph and algorithm params",
 		Args:  cobra.ExactArgs(5),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			RandSeed()
+			// RandSeed()
+			rand.Seed(42)
 
 			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
 			linksPerAgent, _ := strconv.ParseInt(args[1], 10 ,64)
@@ -96,6 +101,7 @@ func RunBenchCmd() *cobra.Command {
 			}
 			fmt.Println("Stakes generation for agents", "time", time.Since(start))
 
+
 			start = time.Now()
 			for i := int64(0); i < cidsCount; i++ {
 
@@ -150,6 +156,17 @@ func RunBenchCmd() *cobra.Command {
 				cRank, cDampingFactor, cTolerance,
 			)
 			fmt.Println("Rank calculation", "time", time.Since(start))
+
+			start = time.Now()
+			merkleTree := merkle.NewTree(sha256.New(), true)
+			for _, f64 := range rank {
+				rankBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(rankBytes, math.Float64bits(f64))
+				merkleTree.Push(rankBytes)
+			}
+			hash := merkleTree.RootHash()
+			fmt.Println("Rank constructing merkle tree: ", "time", time.Since(start))
+			fmt.Printf("Rank merkle root hash: %x\n", hash)
 
 			return nil
 		},
