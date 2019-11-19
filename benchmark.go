@@ -1,4 +1,4 @@
-// +build cuda
+// // +build cuda
 
 package main
 
@@ -15,12 +15,12 @@ import (
 	"github.com/cybercongress/cyberd/merkle"
 )
 
-/*
-#cgo CFLAGS: -I/usr/lib/
-#cgo LDFLAGS: -L/usr/local/cuda/lib64 -lcbdrank -lcudart
-#include "cbdrank.h"
-*/
-import "C"
+///*
+//#cgo CFLAGS: -I/usr/lib/
+//#cgo LDFLAGS: -L/usr/local/cuda/lib64 -lcbdrank -lcudart
+//#include "cbdrank.h"
+//*/
+//import "C"
 
 type CidNumber uint64
 type AccNumber uint64
@@ -85,6 +85,8 @@ func RunBenchCmd() *cobra.Command {
 			fmt.Println("Added links: ", fixed)
 			fmt.Println("Graph check and filling", "time", time.Since(start))
 
+			// write outLinks, inLinks to disk
+			// read outLinks, inLinks from disk
 
 			linksCount := uint64(0)
 			rank := make([]float64, cidsCount)
@@ -100,7 +102,6 @@ func RunBenchCmd() *cobra.Command {
 				stakes[acc] = uint64(rand.Intn(1000000000) + 100000)
 			}
 			fmt.Println("Stakes generation for agents", "time", time.Since(start))
-
 
 			start = time.Now()
 			for i := int64(0); i < cidsCount; i++ {
@@ -128,34 +129,31 @@ func RunBenchCmd() *cobra.Command {
 			fmt.Println("Links amount", linksCount)
 			fmt.Println("Data preparation", "time", time.Since(start))
 
-			outLinks = nil
-			inLinks = nil
-
-			cStakes := (*C.ulong)(&stakes[0])
-
-			cStakesSize := C.ulong(len(stakes))
-			cCidsSize := C.ulong(len(inLinksCount))
-			cLinksSize := C.ulong(len(inLinksOuts))
-
-			cInLinksCount := (*C.uint)(&inLinksCount[0])
-			cOutLinksCount := (*C.uint)(&outLinksCount[0])
-
-			cInLinksOuts := (*C.ulong)(&inLinksOuts[0])
-			cInLinksUsers := (*C.ulong)(&inLinksUsers[0])
-			cOutLinksUsers := (*C.ulong)(&outLinksUsers[0])
-
-			cDampingFactor := C.double(dampingFactor)
-			cTolerance := C.double(tolerance)
-
-			start = time.Now()
-			cRank := (*C.double)(&rank[0])
-			C.calculate_rank(
-				cStakes, cStakesSize, cCidsSize, cLinksSize,
-				cInLinksCount, cOutLinksCount,
-				cInLinksOuts, cInLinksUsers, cOutLinksUsers,
-				cRank, cDampingFactor, cTolerance,
-			)
-			fmt.Println("Rank calculation", "time", time.Since(start))
+			//cStakes := (*C.ulong)(&stakes[0])
+			//
+			//cStakesSize := C.ulong(len(stakes))
+			//cCidsSize := C.ulong(len(inLinksCount))
+			//cLinksSize := C.ulong(len(inLinksOuts))
+			//
+			//cInLinksCount := (*C.uint)(&inLinksCount[0])
+			//cOutLinksCount := (*C.uint)(&outLinksCount[0])
+			//
+			//cInLinksOuts := (*C.ulong)(&inLinksOuts[0])
+			//cInLinksUsers := (*C.ulong)(&inLinksUsers[0])
+			//cOutLinksUsers := (*C.ulong)(&outLinksUsers[0])
+			//
+			//cDampingFactor := C.double(dampingFactor)
+			//cTolerance := C.double(tolerance)
+			//
+			//start = time.Now()
+			//cRank := (*C.double)(&rank[0])
+			//C.calculate_rank(
+			//	cStakes, cStakesSize, cCidsSize, cLinksSize,
+			//	cInLinksCount, cOutLinksCount,
+			//	cInLinksOuts, cInLinksUsers, cOutLinksUsers,
+			//	cRank, cDampingFactor, cTolerance,
+			//)
+			//fmt.Println("Rank calculation", "time", time.Since(start))
 
 			start = time.Now()
 			merkleTree := merkle.NewTree(sha256.New(), true)
