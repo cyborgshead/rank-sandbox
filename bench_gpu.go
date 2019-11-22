@@ -2,17 +2,21 @@
 
 package main
 
+import "C"
 import (
-	"crypto/sha256"
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"fmt"
-	"github.com/spf13/cobra"
+	"io/ioutil"
 	"math"
-	"math/rand"
 	"sort"
 	"strconv"
 	"time"
+	"crypto/sha256"
+
 	"github.com/cybercongress/cyberd/merkle"
+	"github.com/spf13/cobra"
 )
 
 /*
@@ -22,69 +26,34 @@ import (
 */
 import "C"
 
-type CidNumber uint64
-type AccNumber uint64
-type Links map[CidNumber]CidLinks
-type CidLinks map[CidNumber]map[AccNumber]struct{}
-
-func RandSeed() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-
-func RunBenchCmd() *cobra.Command {
+func RunBenchGPUCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "run-bench <stakesCount> <linksPerAgent> <cidsCount> <dampingFactor> <tolerance>",
-		Short: "Run cyberrank with different graph and algorithm params",
-		Args:  cobra.ExactArgs(5),
+		Use:   "run-bench-gpu <stakesCount> <cidsCount> <dampingFactor> <tolerance>",
+		Short: "Run rank calculation on GPU",
+		Args:  cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// RandSeed()
-			rand.Seed(42)
-
 			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
-			linksPerAgent, _ := strconv.ParseInt(args[1], 10 ,64)
-			cidsCount, _ := strconv.ParseInt(args[2], 10, 64)
-			dampingFactor, _ := strconv.ParseFloat(args[3], 64)
-			tolerance, _ := strconv.ParseFloat(args[4], 64)
+			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
+			dampingFactor, _ := strconv.ParseFloat(args[1], 64)
+			tolerance, _ := strconv.ParseFloat(args[2], 64)
 
 			fmt.Println("Agents: ", stakesCount)
-			fmt.Println("Links per agent: ", linksPerAgent)
 			fmt.Println("CIDs: ", cidsCount)
 			fmt.Println("Damping: ", dampingFactor)
 			fmt.Println("Tolerance: ", tolerance)
 
+			start := time.Now()
+
 			outLinks := make(Links)
 			inLinks := make(Links)
+			stakes := make([]uint64, stakesCount)
 
-			start := time.Now()
-			for i := 0; i < int(stakesCount); i++ {
-				for i := 0; i < int(linksPerAgent); i++ {
-					src := rand.Int63n(cidsCount)
-					dst := rand.Int63n(cidsCount)
-					if src != dst {
-						outLinks.Put(CidNumber(src), CidNumber(dst), AccNumber(uint64(i)))
-						inLinks.Put(CidNumber(dst), CidNumber(src), AccNumber(uint64(i)))
-					}
-				}
-			}
-			fmt.Println("Graph generation", "time", time.Since(start))
-
-			start = time.Now()
-			fixed := int(0)
-			for i := 0; i < int(cidsCount); i++ {
-				if _, ok := outLinks[CidNumber(i)]; !ok {
-					dst := rand.Int63n(cidsCount)
-					agent := rand.Int63n(stakesCount)
-					outLinks.Put(CidNumber(i), CidNumber(dst), AccNumber(agent))
-					inLinks.Put(CidNumber(dst), CidNumber(i), AccNumber(agent))
-					fixed++
-				}
-			}
-			fmt.Println("Added links: ", fixed)
-			fmt.Println("Graph check and filling", "time", time.Since(start))
-
+			readStakesFromBytesFile(&stakes, "./stakes.data")
+			readLinksFromBytesFile(&outLinks, "./outLinks.data")
+			readLinksFromBytesFile(&inLinks, "./inLinks.data")
+			fmt.Println("Graph open data: ", "time", time.Since(start))
 
 			linksCount := uint64(0)
 			rank := make([]float64, cidsCount)
@@ -93,14 +62,6 @@ func RunBenchCmd() *cobra.Command {
 			inLinksOuts := make([]uint64, 0)
 			inLinksUsers := make([]uint64, 0)
 			outLinksUsers := make([]uint64, 0)
-
-			start = time.Now()
-			stakes := make([]uint64, stakesCount)
-			for acc := range stakes {
-				stakes[acc] = uint64(rand.Intn(1000000000) + 100000)
-			}
-			fmt.Println("Stakes generation for agents", "time", time.Since(start))
-
 
 			start = time.Now()
 			for i := int64(0); i < cidsCount; i++ {
@@ -126,6 +87,7 @@ func RunBenchCmd() *cobra.Command {
 				}
 			}
 			fmt.Println("Links amount", linksCount)
+			fmt.Println("Stakes amount", len(stakes))
 			fmt.Println("Data preparation", "time", time.Since(start))
 
 			outLinks = nil
@@ -175,20 +137,6 @@ func RunBenchCmd() *cobra.Command {
 	return cmd
 }
 
-func (links Links) Put(from CidNumber, to CidNumber, acc AccNumber) {
-	cidLinks := links[from]
-	if cidLinks == nil {
-		cidLinks = make(CidLinks)
-	}
-	users := cidLinks[to]
-	if users == nil {
-		users = make(map[AccNumber]struct{})
-	}
-	users[acc] = struct{}{}
-	cidLinks[to] = users
-	links[from] = cidLinks
-}
-
 func GetSortedInLinks(inLinks Links, cid CidNumber) (CidLinks, []CidNumber, bool) {
 	links := inLinks[cid]
 
@@ -206,4 +154,42 @@ func GetSortedInLinks(inLinks Links, cid CidNumber) (CidLinks, []CidNumber, bool
 	return links, numbers, true
 }
 
+func readLinksFromBytesFile(links *Links, fileName string) {
+	var network bytes.Buffer
 
+	data, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		fmt.Printf("error on read links from file  err: %v", err)
+	}
+	n, err := network.Write(data)
+	if err != nil {
+		fmt.Printf("error on read links from file n = %v err: %v", n, err)
+	}
+
+	dec := gob.NewDecoder(&network)
+	err = dec.Decode(links)
+	if err != nil {
+		fmt.Printf("Decode error:", err)
+	}
+
+}
+
+func readStakesFromBytesFile(stakes *[]uint64, fileName string) {
+	var network bytes.Buffer
+
+	data, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		fmt.Printf("error on read stakes from file  err: %v", err)
+	}
+	n, err := network.Write(data)
+	if err != nil {
+		fmt.Printf("error on read stakes from file n = %v err: %v", n, err)
+	}
+
+	dec := gob.NewDecoder(&network)
+	err = dec.Decode(stakes)
+	if err != nil {
+		fmt.Printf("Decode error:", err)
+	}
+
+}

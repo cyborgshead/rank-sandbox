@@ -14,7 +14,9 @@ func main() {
 		Short: "Allows you to run benchmarks of cyberrank",
 	}
 
-	rootCmd.AddCommand(RunBenchCmd())
+	rootCmd.AddCommand(RunBenchCPUCmd())
+	rootCmd.AddCommand(RunBenchGPUCmd())
+	rootCmd.AddCommand(RunGenGraphCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
