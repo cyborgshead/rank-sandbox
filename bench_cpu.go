@@ -16,15 +16,17 @@ import (
 func RunBenchCPUCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "run-bench-cpu <cidsCount> <dampingFactor> <tolerance>",
+		Use:   "run-bench-cpu <stakesCount> <cidsCount> <dampingFactor> <tolerance>",
 		Short: "Run rank calculation on CPU",
-		Args:  cobra.ExactArgs(3),
+		Args:  cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			cidsCount, _ := strconv.ParseInt(args[0], 10, 64)
-			dampingFactor, _ := strconv.ParseFloat(args[1], 64)
-			tolerance, _ := strconv.ParseFloat(args[2], 64)
+			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
+			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
+			dampingFactor, _ := strconv.ParseFloat(args[2], 64)
+			tolerance, _ := strconv.ParseFloat(args[3], 64)
 
+			fmt.Println("Agents: ", stakesCount)
 			fmt.Println("CIDs: ", cidsCount)
 			fmt.Println("Damping: ", dampingFactor)
 			fmt.Println("Tolerance: ", tolerance)
@@ -33,7 +35,7 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			outLinks := make(Links)
 			inLinks := make(Links)
-			stakes := make([]uint64, 0)
+			stakes := make([]uint64, stakesCount)
 
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
