@@ -251,7 +251,9 @@ extern "C" {
 
         cudaMalloc(&d_outLinksStartIndex, cidsSize*sizeof(uint64_t));
         cudaMalloc(&d_outLinksCount,      cidsSize*sizeof(uint32_t));
-        cudaMalloc(&d_outLinksUsers,     linksSize*sizeof(uint64_t));
+        void *pinned_host_d_outLinksUsers;
+        cudaHostAlloc(&pinned_host_d_outLinksUsers, linksSize*sizeof(uint64_t), cudaHostAllocWriteCombined);
+        cudaHostGetDevicePointer(&d_outLinksUsers, pinned_host_d_outLinksUsers, 0);
         cudaMalloc(&d_stakes,           stakesSize*sizeof(uint64_t));
         cudaMalloc(&d_cidsTotalOutStakes, cidsSize*sizeof(uint64_t));   //calculated
 
@@ -267,7 +269,7 @@ extern "C" {
 
         cudaFree(d_outLinksStartIndex);
         cudaFree(d_outLinksCount);
-        cudaFree(d_outLinksUsers);
+        cudaFreeHost(pinned_host_d_outLinksUsers);
         /*-------------------------------------------------------------------*/
 
 
@@ -282,7 +284,9 @@ extern "C" {
         // free all before rank iterations
         cudaMalloc(&d_inLinksStartIndex,      cidsSize*sizeof(uint64_t));
         cudaMalloc(&d_inLinksCount,           cidsSize*sizeof(uint32_t));
-        cudaMalloc(&d_inLinksOuts,           linksSize*sizeof(uint64_t));
+        void *pinned_host_d_inLinksOuts;
+        cudaHostAlloc(&pinned_host_d_inLinksOuts, linksSize*sizeof(uint64_t), cudaHostAllocWriteCombined);
+        cudaHostGetDevicePointer(&d_inLinksOuts, pinned_host_d_inLinksOuts, 0);
         cudaMalloc(&d_compressedInLinksCount, cidsSize*sizeof(uint32_t));   //calculated
 
         cudaMemcpy(d_inLinksStartIndex, inLinksStartIndex, cidsSize*sizeof(uint64_t), cudaMemcpyHostToDevice);
@@ -335,7 +339,7 @@ extern "C" {
         cudaFree(d_inLinksUsers);
         cudaFree(d_inLinksStartIndex);
         cudaFree(d_inLinksCount);
-        cudaFree(d_inLinksOuts);
+        cudaFreeHost(pinned_host_d_inLinksOuts);
         cudaFree(d_stakes);
         cudaFree(d_cidsTotalOutStakes);
         /*-------------------------------------------------------------------*/
