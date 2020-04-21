@@ -2,9 +2,13 @@ package main
 
 import "C"
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"fmt"
+	"io/ioutil"
 	"math"
+	"sort"
 	"strconv"
 	"time"
 	"crypto/sha256"
@@ -33,9 +37,9 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			start := time.Now()
 
-			outLinks := make(Links)
-			inLinks := make(Links)
-			stakes := make([]uint64, stakesCount)
+			outLinks := make(map[CidNumber]CidLinks)
+			inLinks := make(map[CidNumber]CidLinks)
+			stakes := make(map[AccNumber]uint64)
 
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
@@ -55,6 +59,10 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			innerProductOverSize := defaultRank * (float64(danglingNodesSize) / float64(cidsCount))
 			defaultRankWithCorrection := float64(dampingFactor*innerProductOverSize) + defaultRank
+
+			fmt.Println("Rank calculation", "defaultRank", defaultRank)
+			fmt.Println("Rank calculation", "danglingNodesSize", danglingNodesSize)
+			fmt.Println("Rank calculation", "defaultRankWithCorrection", defaultRankWithCorrection)
 
 			change := tolerance + 1
 
@@ -89,7 +97,7 @@ func RunBenchCPUCmd() *cobra.Command {
 	return cmd
 }
 
-func step(inLinks Links, outLinks Links, stakes []uint64, defaultRankWithCorrection float64, dampingFactor float64, prevrank []float64) []float64 {
+func step(inLinks Links, outLinks Links, stakes map[AccNumber]uint64, defaultRankWithCorrection float64, dampingFactor float64, prevrank []float64) []float64 {
 
 	rank := append(make([]float64, 0, len(prevrank)), prevrank...)
 
@@ -113,7 +121,7 @@ func step(inLinks Links, outLinks Links, stakes []uint64, defaultRankWithCorrect
 	return rank
 }
 
-func getOverallLinkStake(outLinks Links, stakes []uint64, from CidNumber, to CidNumber) uint64 {
+func getOverallLinkStake(outLinks Links, stakes map[AccNumber]uint64, from CidNumber, to CidNumber) uint64 {
 
 	stake := uint64(0)
 	users := outLinks[from][to]
@@ -123,7 +131,7 @@ func getOverallLinkStake(outLinks Links, stakes []uint64, from CidNumber, to Cid
 	return stake
 }
 
-func getOverallOutLinksStake(outLinks Links, stakes []uint64, from CidNumber) uint64 {
+func getOverallOutLinksStake(outLinks Links, stakes map[AccNumber]uint64, from CidNumber) uint64 {
 
 	stake := uint64(0)
 	for to := range outLinks[from] {
@@ -149,3 +157,61 @@ func calculateChange(prevrank, rank []float64) float64 {
 
 	return maxDiff
 }
+
+func readLinksFromBytesFile(links *map[CidNumber]CidLinks, fileName string) {
+	var network bytes.Buffer
+
+	data, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		fmt.Printf("error on read links from file  err: %v", err)
+	}
+	n, err := network.Write(data)
+	if err != nil {
+		fmt.Printf("error on read links from file n = %v err: %v", n, err)
+	}
+
+	dec := gob.NewDecoder(&network)
+	err = dec.Decode(links)
+	if err != nil {
+		fmt.Printf("Decode error:", err)
+	}
+
+}
+
+func readStakesFromBytesFile(stakes *map[AccNumber]uint64, fileName string) {
+	var network bytes.Buffer
+
+	data, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		fmt.Printf("error on read stakes from file  err: %v", err)
+	}
+	n, err := network.Write(data)
+	if err != nil {
+		fmt.Printf("error on read stakes from file n = %v err: %v", n, err)
+	}
+
+	dec := gob.NewDecoder(&network)
+	err = dec.Decode(stakes)
+	if err != nil {
+		fmt.Printf("Decode error:", err)
+	}
+
+}
+
+func GetSortedInLinks(inLinks Links, cid CidNumber) (CidLinks, []CidNumber, bool) {
+	links := inLinks[cid]
+
+	if len(links) == 0 {
+		return nil, nil, false
+	}
+
+	numbers := make([]CidNumber, 0, len(links))
+	for num := range links {
+		numbers = append(numbers, num)
+	}
+
+	sort.Slice(numbers, func(i, j int) bool { return numbers[i] < numbers[j] })
+
+	return links, numbers, true
+}
+

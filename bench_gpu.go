@@ -4,16 +4,12 @@ package main
 
 import "C"
 import (
-	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
-	"encoding/gob"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"sort"
 	"strconv"
 	"time"
-	"crypto/sha256"
 
 	"github.com/cybercongress/cyberd/merkle"
 	"github.com/spf13/cobra"
@@ -46,9 +42,9 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start := time.Now()
 
-			outLinks := make(Links)
-			inLinks := make(Links)
-			stakes := make([]uint64, stakesCount)
+			outLinks := make(map[CidNumber]CidLinks)
+			inLinks := make(map[CidNumber]CidLinks)
+			stakes := make(map[AccNumber]uint64)
 
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
@@ -93,7 +89,7 @@ func RunBenchGPUCmd() *cobra.Command {
 			outLinks = nil
 			inLinks = nil
 
-			cStakes := (*C.ulong)(&stakes[0])
+			cStakes := (*C.ulong)(&stakes)
 
 			cStakesSize := C.ulong(len(stakes))
 			cCidsSize := C.ulong(len(inLinksCount))
@@ -135,61 +131,4 @@ func RunBenchGPUCmd() *cobra.Command {
 	}
 
 	return cmd
-}
-
-func GetSortedInLinks(inLinks Links, cid CidNumber) (CidLinks, []CidNumber, bool) {
-	links := inLinks[cid]
-
-	if len(links) == 0 {
-		return nil, nil, false
-	}
-
-	numbers := make([]CidNumber, 0, len(links))
-	for num := range links {
-		numbers = append(numbers, num)
-	}
-
-	sort.Slice(numbers, func(i, j int) bool { return numbers[i] < numbers[j] })
-
-	return links, numbers, true
-}
-
-func readLinksFromBytesFile(links *Links, fileName string) {
-	var network bytes.Buffer
-
-	data, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		fmt.Printf("error on read links from file  err: %v", err)
-	}
-	n, err := network.Write(data)
-	if err != nil {
-		fmt.Printf("error on read links from file n = %v err: %v", n, err)
-	}
-
-	dec := gob.NewDecoder(&network)
-	err = dec.Decode(links)
-	if err != nil {
-		fmt.Printf("Decode error:", err)
-	}
-
-}
-
-func readStakesFromBytesFile(stakes *[]uint64, fileName string) {
-	var network bytes.Buffer
-
-	data, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		fmt.Printf("error on read stakes from file  err: %v", err)
-	}
-	n, err := network.Write(data)
-	if err != nil {
-		fmt.Printf("error on read stakes from file n = %v err: %v", n, err)
-	}
-
-	dec := gob.NewDecoder(&network)
-	err = dec.Decode(stakes)
-	if err != nil {
-		fmt.Printf("Decode error:", err)
-	}
-
 }

@@ -17,6 +17,7 @@ func main() {
 	rootCmd.AddCommand(RunBenchCPUCmd())
 	rootCmd.AddCommand(RunBenchGPUCmd())
 	rootCmd.AddCommand(RunGenGraphCmd())
+	rootCmd.AddCommand(RunDiffCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
