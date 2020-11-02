@@ -101,6 +101,40 @@ void calculateCidTotalOutStake(
 }
 
 /*********************************************************/
+/* DEVICE: USER TO DIVIDE TWO uint64                     */
+/*********************************************************/
+__device__ __forceinline__
+double ddiv_rn(uint64_t *a, uint64_t *b) {
+    return __ddiv_rn(__ull2double_rn(*a), __ull2double_rn(*b));
+}
+
+/*****************************************************/
+/* KERNEL: CALCULATE CIDS TOTAL ENTROPY              */
+/*****************************************************/
+__global__
+void calculateNodeEntropy(
+    uint64_t cidsSize,
+    uint64_t *stakes,                                        /*array index - user index*/
+    uint64_t *outLinksStartIndex, uint32_t *outLinksCount,   /*array index - cid index*/
+    uint64_t *outLinksUsers,                                 /*all out links from all users*/
+    uint64_t *cidsTotalOutStakes,                             /*array index - cid index*/
+    /*returns*/ double *nodesTotalEntropy               /*array index - cid index*/
+) {
+
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+    uint64_t stride = blockDim.x * gridDim.x;
+
+    for (uint64_t i = index; i < cidsSize; i += stride) {
+        double nodeLinksEntropy = 0;
+        for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
+           double weight = ddiv_rn(&stakes[outLinksUsers[j]], &cidsTotalOutStakes[i]);
+           nodeLinksEntropy += weight*log(weight);
+        }
+        nodesTotalEntropy[i] = nodeLinksEntropy;
+    }
+}
+
+/*********************************************************/
 /* KERNEL: CALCULATE COMPRESSED IN LINKS COUNT FOR CIDS  */
 /*********************************************************/
 __global__
@@ -129,14 +163,6 @@ void getCompressedInLinksCount(
         }
         compressedInLinksCount[i] = compressedLinksCount;
     }
-}
-
-/*********************************************************/
-/* DEVICE: USER TO DIVIDE TWO uint64                     */
-/*********************************************************/
-__device__ __forceinline__
-double ddiv_rn(uint64_t *a, uint64_t *b) {
-    return __ddiv_rn(__ull2double_rn(*a), __ull2double_rn(*b));
 }
 
 
@@ -225,7 +251,8 @@ extern "C" {
         uint64_t *outLinksUsers,                                  /*all outgoing links from all users*/
         double *rank,                                             /* array index - cid index*/
         double dampingFactor,                                     /* value of damping factor*/
-        double tolerance                                          /* value of needed tolerance */
+        double tolerance,                                         /* value of needed tolerance */
+        double *entropy                                           /* array index - cid index*/
     ) {
 
         // setbuf(stdout, NULL);
@@ -264,6 +291,18 @@ extern "C" {
             cidsSize, d_stakes, d_outLinksStartIndex,
             d_outLinksCount, d_outLinksUsers, d_cidsTotalOutStakes
         );
+
+        // DEV ENTROPY
+        double *d_entropy;
+        cudaMalloc(&d_entropy, cidsSize*sizeof(double));
+        cudaMemcpy(d_entropy, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        calculateNodeEntropy<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_stakes, d_outLinksStartIndex,
+            d_outLinksCount, d_outLinksUsers, d_cidsTotalOutStakes, d_entropy
+        );
+        cudaMemcpy(entropy, d_entropy, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
+        // DEV ENTROPY
 
         cudaFree(d_outLinksStartIndex);
         cudaFree(d_outLinksCount);

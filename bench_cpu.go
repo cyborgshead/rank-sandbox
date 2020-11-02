@@ -3,6 +3,7 @@ package main
 import "C"
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-	"crypto/sha256"
 
 	"github.com/cybercongress/cyberd/merkle"
 	"github.com/spf13/cobra"
@@ -39,7 +39,7 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			outLinks := make(map[CidNumber]CidLinks)
 			inLinks := make(map[CidNumber]CidLinks)
-			stakes := make(map[AccNumber]uint64)
+			stakes := make([]uint64, stakesCount)
 
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
@@ -47,6 +47,7 @@ func RunBenchCPUCmd() *cobra.Command {
 			fmt.Println("Graph open data: ", "time", time.Since(start))
 
 			rank := make([]float64, cidsCount)
+			rankUint := make([]uint64, cidsCount)
 			defaultRank := (1.0 - dampingFactor) / float64(cidsCount)
 			danglingNodesSize := uint64(0)
 
@@ -78,12 +79,27 @@ func RunBenchCPUCmd() *cobra.Command {
 			}
 			fmt.Println("Rank calculation", "time", time.Since(start))
 
+			start = time.Now()
+			for i, f64 := range rank {
+				rankUint[i] = uint64(f64*1e20)
+			}
+			fmt.Println("Rank converting to uint: ", "time", time.Since(start))
+
+			start = time.Now()
+			e := entropy(outLinks, inLinks, stakes)
+			fmt.Printf("Entropy: %f\n", e)
+			fmt.Println("Entropy calculation: ", "time", time.Since(start))
 
 			start = time.Now()
 			merkleTree := merkle.NewTree(sha256.New(), true)
-			for _, f64 := range rank {
+			//for _, f64 := range rank {
+			//	rankBytes := make([]byte, 8)
+			//	binary.LittleEndian.PutUint64(rankBytes, math.Float64bits(f64))
+			//	merkleTree.Push(rankBytes)
+			//}
+			for _, u64 := range rankUint {
 				rankBytes := make([]byte, 8)
-				binary.LittleEndian.PutUint64(rankBytes, math.Float64bits(f64))
+				binary.LittleEndian.PutUint64(rankBytes, u64)
 				merkleTree.Push(rankBytes)
 			}
 			hash := merkleTree.RootHash()
@@ -97,7 +113,24 @@ func RunBenchCPUCmd() *cobra.Command {
 	return cmd
 }
 
-func step(inLinks Links, outLinks Links, stakes map[AccNumber]uint64, defaultRankWithCorrection float64, dampingFactor float64, prevrank []float64) []float64 {
+func entropy(outLinks Links, inLinks Links, stakes []uint64) float64 {
+	e := float64(0)
+
+	for from := range outLinks {
+		outStake := getOverallOutLinksStake(outLinks, stakes, from)
+		inStake := getOverallOutLinksStake(inLinks, stakes, from)
+		ois := outStake + inStake
+		for to := range outLinks[from] {
+			linkStake := getOverallLinkStake(outLinks, stakes, from, to)
+			w := float64(linkStake) / float64(ois)
+			e -= w*math.Log(w)
+		}
+	}
+
+	return e
+}
+
+func step(inLinks Links, outLinks Links, stakes []uint64, defaultRankWithCorrection float64, dampingFactor float64, prevrank []float64) []float64 {
 
 	rank := append(make([]float64, 0, len(prevrank)), prevrank...)
 
@@ -121,7 +154,7 @@ func step(inLinks Links, outLinks Links, stakes map[AccNumber]uint64, defaultRan
 	return rank
 }
 
-func getOverallLinkStake(outLinks Links, stakes map[AccNumber]uint64, from CidNumber, to CidNumber) uint64 {
+func getOverallLinkStake(outLinks Links, stakes []uint64, from CidNumber, to CidNumber) uint64 {
 
 	stake := uint64(0)
 	users := outLinks[from][to]
@@ -131,7 +164,7 @@ func getOverallLinkStake(outLinks Links, stakes map[AccNumber]uint64, from CidNu
 	return stake
 }
 
-func getOverallOutLinksStake(outLinks Links, stakes map[AccNumber]uint64, from CidNumber) uint64 {
+func getOverallOutLinksStake(outLinks Links, stakes []uint64, from CidNumber) uint64 {
 
 	stake := uint64(0)
 	for to := range outLinks[from] {
@@ -178,7 +211,7 @@ func readLinksFromBytesFile(links *map[CidNumber]CidLinks, fileName string) {
 
 }
 
-func readStakesFromBytesFile(stakes *map[AccNumber]uint64, fileName string) {
+func readStakesFromBytesFile(stakes *[]uint64, fileName string) {
 	var network bytes.Buffer
 
 	data, err := ioutil.ReadFile(fileName)

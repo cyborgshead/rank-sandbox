@@ -32,8 +32,8 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
 			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
-			dampingFactor, _ := strconv.ParseFloat(args[1], 64)
-			tolerance, _ := strconv.ParseFloat(args[2], 64)
+			dampingFactor, _ := strconv.ParseFloat(args[2], 64)
+			tolerance, _ := strconv.ParseFloat(args[3], 64)
 
 			fmt.Println("Agents: ", stakesCount)
 			fmt.Println("CIDs: ", cidsCount)
@@ -44,7 +44,7 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			outLinks := make(map[CidNumber]CidLinks)
 			inLinks := make(map[CidNumber]CidLinks)
-			stakes := make(map[AccNumber]uint64)
+			stakes := make([]uint64, stakesCount)
 
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
@@ -53,6 +53,7 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			linksCount := uint64(0)
 			rank := make([]float64, cidsCount)
+			entropy := make([]float64, cidsCount)
 			inLinksCount := make([]uint32, cidsCount)
 			outLinksCount := make([]uint32, cidsCount)
 			inLinksOuts := make([]uint64, 0)
@@ -89,7 +90,7 @@ func RunBenchGPUCmd() *cobra.Command {
 			outLinks = nil
 			inLinks = nil
 
-			cStakes := (*C.ulong)(&stakes)
+			cStakes := (*C.ulong)(&stakes[0])
 
 			cStakesSize := C.ulong(len(stakes))
 			cCidsSize := C.ulong(len(inLinksCount))
@@ -107,11 +108,12 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start = time.Now()
 			cRank := (*C.double)(&rank[0])
+			cEntropy := (*C.double)(&entropy[0])
 			C.calculate_rank(
 				cStakes, cStakesSize, cCidsSize, cLinksSize,
 				cInLinksCount, cOutLinksCount,
 				cInLinksOuts, cInLinksUsers, cOutLinksUsers,
-				cRank, cDampingFactor, cTolerance,
+				cRank, cDampingFactor, cTolerance, cEntropy,
 			)
 			fmt.Println("Rank calculation", "time", time.Since(start))
 
@@ -125,6 +127,14 @@ func RunBenchGPUCmd() *cobra.Command {
 			hash := merkleTree.RootHash()
 			fmt.Println("Rank constructing merkle tree: ", "time", time.Since(start))
 			fmt.Printf("Rank merkle root hash: %x\n", hash)
+
+			start = time.Now()
+			e := float64(0)
+			for _, f64 := range entropy {
+				e += f64
+			}
+			fmt.Println("Entropy reduction: ", "time", time.Since(start))
+			fmt.Printf("Entropy: %f\n", e)
 
 			return nil
 		},

@@ -42,7 +42,7 @@ func RunGenGraphCmd() *cobra.Command {
 
 			start := time.Now()
 			for i := 0; i < int(stakesCount); i++ {
-				for i := 0; i < int(linksPerAgent); i++ {
+				for j := 0; j < int(linksPerAgent); j++ {
 					src := rand.Int63n(cidsCount)
 					dst := rand.Int63n(cidsCount)
 					if src != dst {
@@ -69,8 +69,8 @@ func RunGenGraphCmd() *cobra.Command {
 
 			start = time.Now()
 			stakes := make([]uint64, stakesCount)
-			for acc := range stakes {
-				stakes[acc] = uint64(rand.Intn(1000000000) + 100000)
+			for i, _ := range stakes {
+				stakes[i] = uint64(rand.Intn(1000000000) + 100000)
 			}
 			fmt.Println("Stakes generation for agents", "time", time.Since(start))
 

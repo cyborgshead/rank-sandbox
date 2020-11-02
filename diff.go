@@ -18,7 +18,7 @@ func RunDiffCmd() *cobra.Command {
 
 			outLinksA := make(map[CidNumber]CidLinks)
 			inLinksA := make(map[CidNumber]CidLinks)
-			stakesA := make(map[AccNumber]uint64)
+			stakesA := make([]uint64, 100000)
 
 			readStakesFromBytesFile(&stakesA, "./diffB/stakes.data")
 			readLinksFromBytesFile(&outLinksA, "./diffB/outLinks.data")
@@ -26,7 +26,7 @@ func RunDiffCmd() *cobra.Command {
 
 			outLinksB := make(map[CidNumber]CidLinks)
 			inLinksB := make(map[CidNumber]CidLinks)
-			stakesB := make(map[AccNumber]uint64)
+			stakesB := make([]uint64, 100000)
 
 			readStakesFromBytesFile(&stakesB, "./diffC/stakes.data")
 			readLinksFromBytesFile(&outLinksB, "./diffC/outLinks.data")
