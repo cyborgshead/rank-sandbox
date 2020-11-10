@@ -118,6 +118,7 @@ void calculateNodeEntropy(
     uint64_t *outLinksStartIndex, uint32_t *outLinksCount,   /*array index - cid index*/
     uint64_t *outLinksUsers,                                 /*all out links from all users*/
     uint64_t *cidsTotalOutStakes,                             /*array index - cid index*/
+    uint64_t *cidsTotalInStakes,                             /*array index - cid index*/
     /*returns*/ double *nodesTotalEntropy               /*array index - cid index*/
 ) {
 
@@ -126,9 +127,11 @@ void calculateNodeEntropy(
 
     for (uint64_t i = index; i < cidsSize; i += stride) {
         double nodeLinksEntropy = 0;
+        // uint64_t oil = cidsTotalOutStakes[i] + cidsTotalInStakes[i]; 
+        uint64_t oil = cidsTotalOutStakes[i];
         for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
-           double weight = ddiv_rn(&stakes[outLinksUsers[j]], &cidsTotalOutStakes[i]);
-           nodeLinksEntropy += weight*log(weight);
+           double weight = ddiv_rn(&stakes[outLinksUsers[j]], &oil);
+           nodeLinksEntropy -= weight*log(weight);
         }
         nodesTotalEntropy[i] = nodeLinksEntropy;
     }
@@ -292,17 +295,38 @@ extern "C" {
             d_outLinksCount, d_outLinksUsers, d_cidsTotalOutStakes
         );
 
-        // DEV ENTROPY
+        // DEV ENTROPY (in+out stake)
+        /*-------------------------------------------------------------------*/
+        uint64_t *d_inLinksStartIndex0;
+        uint32_t *d_inLinksCount0;
+        uint64_t *d_inLinksUsers0;
+        uint64_t *d_cidsTotalInStakes; // will be used to calculated links weights, should be freed before rank iterations
+
+        cudaMalloc(&d_inLinksStartIndex0, cidsSize*sizeof(uint64_t));
+        cudaMalloc(&d_inLinksCount0,      cidsSize*sizeof(uint32_t));
+        cudaMalloc(&d_inLinksUsers0,      linksSize*sizeof(uint64_t));
+        cudaMalloc(&d_cidsTotalInStakes, cidsSize*sizeof(uint64_t));   //calculated
+        
+        cudaMemcpy(d_inLinksStartIndex0, inLinksStartIndex, cidsSize*sizeof(uint64_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_inLinksCount0,      inLinksCount,      cidsSize*sizeof(uint32_t), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_inLinksUsers0,      inLinksUsers,      linksSize*sizeof(uint64_t), cudaMemcpyHostToDevice);
+
+        calculateCidTotalOutStake<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_stakes, d_inLinksStartIndex0,
+            d_inLinksCount0, d_inLinksUsers0, d_cidsTotalInStakes
+        );
+        /*-----------*/
+
         double *d_entropy;
         cudaMalloc(&d_entropy, cidsSize*sizeof(double));
         cudaMemcpy(d_entropy, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
 
         calculateNodeEntropy<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
             cidsSize, d_stakes, d_outLinksStartIndex,
-            d_outLinksCount, d_outLinksUsers, d_cidsTotalOutStakes, d_entropy
+            d_outLinksCount, d_outLinksUsers, d_cidsTotalOutStakes, d_cidsTotalInStakes, d_entropy
         );
         cudaMemcpy(entropy, d_entropy, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
-        // DEV ENTROPY
+        /*-------------------------------------------------------------------*/
 
         cudaFree(d_outLinksStartIndex);
         cudaFree(d_outLinksCount);
