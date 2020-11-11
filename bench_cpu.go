@@ -83,7 +83,7 @@ func RunBenchCPUCmd() *cobra.Command {
 			outLinks.Put(6,3,9)
 			outLinks.Put(7,2,9)
 			outLinks.Put(8,1,0)
-			outLinks.Put(9,3,0)
+			//outLinks.Put(9,3,0)
 
 			inLinks.Put(1,0,1)
 			inLinks.Put(3,0,1)
@@ -119,7 +119,7 @@ func RunBenchCPUCmd() *cobra.Command {
 			inLinks.Put(3,6,9)
 			inLinks.Put(2,7,9)
 			inLinks.Put(1,8,0)
-			inLinks.Put(3,9,0)
+			//inLinks.Put(3,9,0)
 
 			fmt.Println("outLinks: ", outLinks)
 
@@ -339,11 +339,13 @@ func entropy(outLinks Links, inLinks Links, stakes []uint64, ent []float64) (flo
 		inStake := getOverallOutLinksStake(inLinks, stakes, from)
 		ois := outStake + inStake
 		for to := range outLinks[from] {
-			linkStake := getOverallLinkStake(outLinks, stakes, from, to)
-			w := float64(linkStake) / float64(ois)
-			e -= w*math.Log2(w)
-			ent[from] -= w*math.Log2(w)
-			//fmt.Println("LINK:", from,"->",to,"| LS:", linkStake, "| TLS:", ois, "| W:", w,"| E:", -w*math.Log(w))
+			users := outLinks[from][to]
+			for user := range users {
+				w := float64(stakes[user]) / float64(ois)
+				e -= w*math.Log2(w)
+				ent[from] -= w*math.Log2(w)
+				//fmt.Println("LINK:", from,"->",to,"| USER:", user, "| LS:", stakes[user], "| TLS:", ois, "| W:", w,"| E:", -w*math.Log2(w))
+			}
 		}
 		//fmt.Println("--------\n")
 	}

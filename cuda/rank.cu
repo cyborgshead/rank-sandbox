@@ -131,10 +131,25 @@ void calculateNodeEntropy(
         // uint64_t oil = cidsTotalOutStakes[i];
         for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
            double weight = ddiv_rn(&stakes[outLinksUsers[j]], &oil);
-           nodeLinksEntropy -= weight*log(weight);
+           double logw = log2(weight);
+           nodeLinksEntropy -= __dmul_rn(weight,logw);
         }
         nodesTotalEntropy[i] = nodeLinksEntropy;
     }
+}
+
+/*********************************************************/
+/* KERNEL: MULTIPLY TWO ARRAYS                           */
+/*********************************************************/
+__global__
+void multiplyArrays(
+    uint64_t arrSize,
+    double *array1,
+    double *array2,
+    double *array3
+) {
+    int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tx < arrSize) array3[tx] = __dmul_rn(array1[tx],array2[tx]);
 }
 
 /*********************************************************/
@@ -255,7 +270,8 @@ extern "C" {
         double *rank,                                             /* array index - cid index*/
         double dampingFactor,                                     /* value of damping factor*/
         double tolerance,                                         /* value of needed tolerance */
-        double *entropy                                           /* array index - cid index*/
+        double *entropy,                                           /* array index - cid index*/
+        double *light                                             /* array index - cid index*/
     ) {
 
         // setbuf(stdout, NULL);
@@ -451,6 +467,17 @@ extern "C" {
         cudaMemcpy(rank, d_rank, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
         /*-------------------------------------------------------------------*/
 
+        //size_t mem_avail, mem_total;
+	    //cudaMemGetInfo(&mem_avail, &mem_total);
+	    //std::cout<<"Debug: "<<"0 mem avail: "<<mem_avail<<" total: "<<mem_total<<std::endl;
+
+        double *d_light;
+        cudaMalloc(&d_light, cidsSize*sizeof(double));
+        cudaMemcpy(d_light, light, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+        multiplyArrays<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize,d_rank,d_entropy,d_light
+        );
+        cudaMemcpy(light, d_light, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
 
         cudaFree(d_rank);
         cudaFree(d_prevRank);

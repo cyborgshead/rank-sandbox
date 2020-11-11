@@ -55,6 +55,8 @@ func RunBenchGPUCmd() *cobra.Command {
 			rankUint := make([]uint64, cidsCount)
 			entropy := make([]float64, cidsCount)
 			entropyUint := make([]uint64, cidsCount)
+			light := make([]float64, cidsCount)
+			lightUint := make([]uint64, cidsCount)
 			inLinksCount := make([]uint32, cidsCount)
 			outLinksCount := make([]uint32, cidsCount)
 			inLinksOuts := make([]uint64, 0)
@@ -110,11 +112,12 @@ func RunBenchGPUCmd() *cobra.Command {
 			start = time.Now()
 			cRank := (*C.double)(&rank[0])
 			cEntropy := (*C.double)(&entropy[0])
+			cLight := (*C.double)(&light[0])
 			C.calculate_rank(
 				cStakes, cStakesSize, cCidsSize, cLinksSize,
 				cInLinksCount, cOutLinksCount,
 				cInLinksOuts, cInLinksUsers, cOutLinksUsers,
-				cRank, cDampingFactor, cTolerance, cEntropy,
+				cRank, cDampingFactor, cTolerance, cEntropy, cLight,
 			)
 			fmt.Println("Rank calculation", "time", time.Since(start))
 
@@ -131,8 +134,8 @@ func RunBenchGPUCmd() *cobra.Command {
 			fmt.Println("---------------------------------")
 
 			start = time.Now()
-			for i, f64 := range rank {
-				rankUint[i] = uint64(f64*1e10)
+			for i, r64 := range rank {
+				rankUint[i] = uint64(r64*1e10)
 			}
 			fmt.Println("Rank converting to uint: ", "time", time.Since(start))
 			fmt.Println("Ranks []float64: ", rank)
@@ -142,9 +145,9 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start = time.Now()
 			rankTree := merkle.NewTree(sha256.New(), true)
-			for _, r64 := range rankUint {
+			for _, ru64 := range rankUint {
 				rankBytes := make([]byte, 8)
-				binary.LittleEndian.PutUint64(rankBytes, r64)
+				binary.LittleEndian.PutUint64(rankBytes, ru64)
 				rankTree.Push(rankBytes)
 			}
 			rhash := rankTree.RootHash()
@@ -164,8 +167,8 @@ func RunBenchGPUCmd() *cobra.Command {
 			fmt.Println("---------------------------------")
 
 			start = time.Now()
-			for i, e64 := range entropy {
-				entropyUint[i] = uint64(e64*1e10)
+			for i, eu64 := range entropy {
+				entropyUint[i] = uint64(eu64*1e10)
 			}
 			fmt.Println("Entropy converting to uint: ", "time", time.Since(start))
 			fmt.Println("Entropy []float64: ", entropy)
@@ -186,28 +189,28 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			fmt.Println("---------------------------------")
 
-			//start = time.Now()
-			//for i, l64 := range light {
-			//	lightUint[i] = uint64(l64*1e10)
-			//}
-			//fmt.Println("Light converting to uint: ", "time", time.Since(start))
-			//fmt.Println("Light []float64: ", light)
-			//fmt.Println("Light []uint64: ", lightUint)
-			//
-			//fmt.Println("---------------------------------")
-			//
-			//start = time.Now()
-			//lightTree := merkle.NewTree(sha256.New(), true)
-			//for _, l64 := range lightUint {
-			//	lightBytes := make([]byte, 8)
-			//	binary.LittleEndian.PutUint64(lightBytes, l64)
-			//	lightTree.Push(lightBytes)
-			//}
-			//lhash := lightTree.RootHash()
-			//fmt.Println("Light constructing merkle tree: ", "time", time.Since(start))
-			//fmt.Printf("Light merkle root hash: %x\n", lhash)
-			//
-			//fmt.Println("---------------------------------")
+			start = time.Now()
+			for i, l64 := range light {
+				lightUint[i] = uint64(l64*1e10)
+			}
+			fmt.Println("Light converting to uint: ", "time", time.Since(start))
+			fmt.Println("Light []float64: ", light)
+			fmt.Println("Light []uint64: ", lightUint)
+
+			fmt.Println("---------------------------------")
+
+			start = time.Now()
+			lightTree := merkle.NewTree(sha256.New(), true)
+			for _, l64 := range lightUint {
+				lightBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(lightBytes, l64)
+				lightTree.Push(lightBytes)
+			}
+			lhash := lightTree.RootHash()
+			fmt.Println("Light constructing merkle tree: ", "time", time.Since(start))
+			fmt.Printf("Light merkle root hash: %x\n", lhash)
+
+			fmt.Println("---------------------------------")
 
 			return nil
 		},

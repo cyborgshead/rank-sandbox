@@ -9,5 +9,6 @@ void calculate_rank(
     double *rank,                                             /* array index - cid index*/
     double dampingFactor,                                     /* value of damping factor*/
     double tolerance,                                         /* value of needed tolerance */
-    double *entropy                                           /* array index - cid index*/
+    double *entropy,                                           /* array index - cid index*/
+    double *light                                             /* array index - cid index*/
 );
