@@ -127,8 +127,8 @@ void calculateNodeEntropy(
 
     for (uint64_t i = index; i < cidsSize; i += stride) {
         double nodeLinksEntropy = 0;
-        // uint64_t oil = cidsTotalOutStakes[i] + cidsTotalInStakes[i]; 
-        uint64_t oil = cidsTotalOutStakes[i];
+        uint64_t oil = cidsTotalOutStakes[i] + cidsTotalInStakes[i]; 
+        // uint64_t oil = cidsTotalOutStakes[i];
         for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
            double weight = ddiv_rn(&stakes[outLinksUsers[j]], &oil);
            nodeLinksEntropy -= weight*log(weight);
