@@ -292,6 +292,7 @@ func RunBenchCPUCmd() *cobra.Command {
 			fmt.Println("Karma constructing merkle tree: ", "time", time.Since(start))
 			fmt.Printf("Karma merkle root hash: %x\n", khash)
 
+
 			fmt.Println("---------------------------------")
 			fmt.Println("Prepare mocked data for CPU-GPU results cross check validation")
 			start = time.Now()

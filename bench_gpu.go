@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -24,16 +25,23 @@ import "C"
 func RunBenchGPUCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "run-bench-gpu <stakesCount> <cidsCount> <dampingFactor> <tolerance>",
+		Use:   "run-bench-gpu <stakesCount> <cidsCount> <dampingFactor> <tolerance> <debug>",
 		Short: "Run rank calculation on GPU",
-		Args:  cobra.ExactArgs(4),
+		Args:  cobra.ExactArgs(5),
 		RunE: func(cmd *cobra.Command, args []string) error {
+
+			mem := &runtime.MemStats{}
+			memUsageOffset := mem.Alloc
+			base := uint64(1048576)
 
 			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
 			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
 			dampingFactor, _ := strconv.ParseFloat(args[2], 64)
 			tolerance, _ := strconv.ParseFloat(args[3], 64)
+			debug, _ := strconv.ParseBool(args[4])
 
+			fmt.Println("---------------------------------\n")
+			fmt.Println("STEP 0: Graph load")
 			fmt.Println("Agents: ", stakesCount)
 			fmt.Println("CIDs: ", cidsCount)
 			fmt.Println("Damping: ", dampingFactor)
@@ -48,8 +56,14 @@ func RunBenchGPUCmd() *cobra.Command {
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
 			readLinksFromBytesFile(&inLinks, "./inLinks.data")
+
 			fmt.Println("Graph open data: ", "time", time.Since(start))
 
+			runtime.ReadMemStats(mem)
+			fmt.Println("-[GO] Memory:", (mem.Alloc-memUsageOffset)/base)
+
+			fmt.Println("---------------------------------\n")
+			fmt.Println("STEP 1: Prepare memory")
 			linksCount := uint64(0)
 			rank := make([]float64, cidsCount)
 			rankUint := make([]uint64, cidsCount)
@@ -57,13 +71,22 @@ func RunBenchGPUCmd() *cobra.Command {
 			entropyUint := make([]uint64, cidsCount)
 			light := make([]float64, cidsCount)
 			lightUint := make([]uint64, cidsCount)
+			karma := make([]float64, stakesCount)
+			karmaUint := make([]uint64, stakesCount)
 			inLinksCount := make([]uint32, cidsCount)
 			outLinksCount := make([]uint32, cidsCount)
 			inLinksOuts := make([]uint64, 0)
 			inLinksUsers := make([]uint64, 0)
 			outLinksUsers := make([]uint64, 0)
 
+			runtime.ReadMemStats(mem)
+			fmt.Println("-[GO] Memory:", (mem.Alloc-memUsageOffset)/base)
+
+			fmt.Println("---------------------------------\n")
+			fmt.Println("STEP 2: Data transformation")
+
 			start = time.Now()
+
 			for i := int64(0); i < cidsCount; i++ {
 
 				if inLinks, sortedCids, ok := GetSortedInLinks(inLinks, CidNumber(i)); ok {
@@ -90,6 +113,12 @@ func RunBenchGPUCmd() *cobra.Command {
 			fmt.Println("Stakes amount", len(stakes))
 			fmt.Println("Data preparation", "time", time.Since(start))
 
+			runtime.ReadMemStats(mem)
+			fmt.Println("-[GO] Memory:", (mem.Alloc-memUsageOffset)/base)
+
+			fmt.Println("---------------------------------")
+			fmt.Println("STEP 2: Rank calculation")
+
 			outLinks = nil
 			inLinks = nil
 
@@ -113,15 +142,20 @@ func RunBenchGPUCmd() *cobra.Command {
 			cRank := (*C.double)(&rank[0])
 			cEntropy := (*C.double)(&entropy[0])
 			cLight := (*C.double)(&light[0])
+			cKarma := (*C.double)(&karma[0])
 			C.calculate_rank(
 				cStakes, cStakesSize, cCidsSize, cLinksSize,
 				cInLinksCount, cOutLinksCount,
 				cInLinksOuts, cInLinksUsers, cOutLinksUsers,
-				cRank, cDampingFactor, cTolerance, cEntropy, cLight,
+				cRank, cDampingFactor, cTolerance, cEntropy, cLight, cKarma,
 			)
 			fmt.Println("Rank calculation", "time", time.Since(start))
 
+			runtime.ReadMemStats(mem)
+			fmt.Println("-[GO] Memory:", (mem.Alloc-memUsageOffset)/base)
+
 			fmt.Println("---------------------------------")
+			fmt.Println("STEP 3: Data and stats")
 
 			start = time.Now()
 			r := float64(0)
@@ -131,17 +165,19 @@ func RunBenchGPUCmd() *cobra.Command {
 			fmt.Println("Ranks reduction: ", "time", time.Since(start))
 			fmt.Printf("RanksSum: %f\n", r)
 
-			fmt.Println("---------------------------------")
+			fmt.Println("-------------")
 
 			start = time.Now()
 			for i, r64 := range rank {
 				rankUint[i] = uint64(r64*1e10)
 			}
 			fmt.Println("Rank converting to uint: ", "time", time.Since(start))
-			fmt.Println("Ranks []float64: ", rank)
-			fmt.Println("Ranks []uint64: ", rankUint)
+			if debug {
+				fmt.Println("Ranks []float64: ", rank)
+				fmt.Println("Ranks []uint64: ", rankUint)
+			}
 
-			fmt.Println("---------------------------------")
+			fmt.Println("-------------")
 
 			start = time.Now()
 			rankTree := merkle.NewTree(sha256.New(), true)
@@ -154,7 +190,7 @@ func RunBenchGPUCmd() *cobra.Command {
 			fmt.Println("Rank constructing merkle tree: ", "time", time.Since(start))
 			fmt.Printf("Rank merkle root hash: %x\n", rhash)
 
-			fmt.Println("---------------------------------")
+			fmt.Println("-------------")
 
 			start = time.Now()
 			e := float64(0)
@@ -164,17 +200,19 @@ func RunBenchGPUCmd() *cobra.Command {
 			fmt.Println("Entropy reduction: ", "time", time.Since(start))
 			fmt.Printf("Entropy: %f\n", e)
 
-			fmt.Println("---------------------------------")
+			fmt.Println("-------------")
 
 			start = time.Now()
 			for i, eu64 := range entropy {
 				entropyUint[i] = uint64(eu64*1e10)
 			}
 			fmt.Println("Entropy converting to uint: ", "time", time.Since(start))
-			fmt.Println("Entropy []float64: ", entropy)
-			fmt.Println("Entropy []uint64: ", entropyUint)
+			if debug {
+				fmt.Println("Entropy []float64: ", entropy)
+				fmt.Println("Entropy []uint64: ", entropyUint)
+			}
 
-			fmt.Println("---------------------------------")
+			fmt.Println("-------------")
 
 			start = time.Now()
 			entropyTree := merkle.NewTree(sha256.New(), true)
@@ -187,17 +225,19 @@ func RunBenchGPUCmd() *cobra.Command {
 			fmt.Println("Entropy constructing merkle tree: ", "time", time.Since(start))
 			fmt.Printf("Entropy merkle root hash: %x\n", ehash)
 
-			fmt.Println("---------------------------------")
+			fmt.Println("-------------")
 
 			start = time.Now()
 			for i, l64 := range light {
 				lightUint[i] = uint64(l64*1e10)
 			}
 			fmt.Println("Light converting to uint: ", "time", time.Since(start))
-			fmt.Println("Light []float64: ", light)
-			fmt.Println("Light []uint64: ", lightUint)
+			if debug {
+				fmt.Println("Light []float64: ", light)
+				fmt.Println("Light []uint64: ", lightUint)
+			}
 
-			fmt.Println("---------------------------------")
+			fmt.Println("-------------")
 
 			start = time.Now()
 			lightTree := merkle.NewTree(sha256.New(), true)
@@ -209,6 +249,47 @@ func RunBenchGPUCmd() *cobra.Command {
 			lhash := lightTree.RootHash()
 			fmt.Println("Light constructing merkle tree: ", "time", time.Since(start))
 			fmt.Printf("Light merkle root hash: %x\n", lhash)
+
+			fmt.Println("-------------")
+
+			start = time.Now()
+			for i, k64 := range karma {
+				karmaUint[i] = uint64(k64*1e10)
+			}
+			fmt.Println("Karma converting to uint: ", "time", time.Since(start))
+			if debug {
+				fmt.Println("Karma []float64: ", karma)
+				fmt.Println("Karma []uint64: ", karmaUint)
+			}
+
+			fmt.Println("-------------")
+
+
+			start = time.Now()
+			karmaTree := merkle.NewTree(sha256.New(), true)
+			for _, l64 := range karmaUint {
+				karmaBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(karmaBytes, l64)
+				karmaTree.Push(karmaBytes)
+			}
+			khash := karmaTree.RootHash()
+			fmt.Println("Karma constructing merkle tree: ", "time", time.Since(start))
+			fmt.Printf("Karma merkle root hash: %x\n", khash)
+
+			fmt.Println("-------------")
+
+			start = time.Now()
+			km := float64(0)
+			for _, km64 := range karma {
+				km += km64
+			}
+			fmt.Println("Karma reduction: ", "time", time.Since(start))
+			fmt.Printf("KarmaSum: %f\n", km)
+
+			fmt.Println("-------------")
+
+			runtime.ReadMemStats(mem)
+			fmt.Println("-[GO] Memory:", (mem.Alloc-memUsageOffset)/base)
 
 			fmt.Println("---------------------------------")
 
