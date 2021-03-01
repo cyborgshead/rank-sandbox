@@ -169,7 +169,7 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start = time.Now()
 			for i, r64 := range rank {
-				rankUint[i] = uint64(r64*1e10)
+				rankUint[i] = uint64(r64 * 1e10)
 			}
 			fmt.Println("Rank converting to uint: ", "time", time.Since(start))
 			if debug {
@@ -204,7 +204,7 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start = time.Now()
 			for i, eu64 := range entropy {
-				entropyUint[i] = uint64(eu64*1e10)
+				entropyUint[i] = uint64(eu64 * 1e10)
 			}
 			fmt.Println("Entropy converting to uint: ", "time", time.Since(start))
 			if debug {
@@ -229,7 +229,7 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start = time.Now()
 			for i, l64 := range light {
-				lightUint[i] = uint64(l64*1e10)
+				lightUint[i] = uint64(l64 * 1e10)
 			}
 			fmt.Println("Light converting to uint: ", "time", time.Since(start))
 			if debug {
@@ -254,7 +254,7 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start = time.Now()
 			for i, k64 := range karma {
-				karmaUint[i] = uint64(k64*1e10)
+				karmaUint[i] = uint64(k64 * 1e10)
 			}
 			fmt.Println("Karma converting to uint: ", "time", time.Since(start))
 			if debug {
@@ -263,7 +263,6 @@ func RunBenchGPUCmd() *cobra.Command {
 			}
 
 			fmt.Println("-------------")
-
 
 			start = time.Now()
 			karmaTree := merkle.NewTree(sha256.New(), true)

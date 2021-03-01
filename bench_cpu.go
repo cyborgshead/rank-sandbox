@@ -49,76 +49,76 @@ func RunBenchCPUCmd() *cobra.Command {
 			//readLinksFromBytesFile(&outLinks, "./outLinks.data")
 			//readLinksFromBytesFile(&inLinks, "./inLinks.data")
 
-			outLinks.Put(0,1,1)
-			outLinks.Put(0,3,1)
-			outLinks.Put(1,4,1)
-			outLinks.Put(2,8,2)
-			outLinks.Put(3,8,2)
-			outLinks.Put(4,9,2)
-			outLinks.Put(5,2,3)
-			outLinks.Put(6,7,3)
-			outLinks.Put(7,9,3)
-			outLinks.Put(8,5,0)
-			outLinks.Put(9,6,0)
+			outLinks.Put(0, 1, 1)
+			outLinks.Put(0, 3, 1)
+			outLinks.Put(1, 4, 1)
+			outLinks.Put(2, 8, 2)
+			outLinks.Put(3, 8, 2)
+			outLinks.Put(4, 9, 2)
+			outLinks.Put(5, 2, 3)
+			outLinks.Put(6, 7, 3)
+			outLinks.Put(7, 9, 3)
+			outLinks.Put(8, 5, 0)
+			outLinks.Put(9, 6, 0)
 
-			outLinks.Put(0,5,4)
-			outLinks.Put(0,6,4)
-			outLinks.Put(1,7,4)
-			outLinks.Put(2,5,5)
-			outLinks.Put(3,1,5)
-			outLinks.Put(4,5,5)
-			outLinks.Put(5,6,6)
-			outLinks.Put(6,9,6)
-			outLinks.Put(7,0,6)
-			outLinks.Put(8,0,0)
-			outLinks.Put(9,4,0)
+			outLinks.Put(0, 5, 4)
+			outLinks.Put(0, 6, 4)
+			outLinks.Put(1, 7, 4)
+			outLinks.Put(2, 5, 5)
+			outLinks.Put(3, 1, 5)
+			outLinks.Put(4, 5, 5)
+			outLinks.Put(5, 6, 6)
+			outLinks.Put(6, 9, 6)
+			outLinks.Put(7, 0, 6)
+			outLinks.Put(8, 0, 0)
+			outLinks.Put(9, 4, 0)
 
-			outLinks.Put(0,4,7)
-			outLinks.Put(0,9,7)
-			outLinks.Put(1,8,7)
-			outLinks.Put(2,4,8)
-			outLinks.Put(3,8,8)
-			outLinks.Put(4,7,8)
-			outLinks.Put(5,1,9)
-			outLinks.Put(6,3,9)
-			outLinks.Put(7,2,9)
-			outLinks.Put(8,1,0)
+			outLinks.Put(0, 4, 7)
+			outLinks.Put(0, 9, 7)
+			outLinks.Put(1, 8, 7)
+			outLinks.Put(2, 4, 8)
+			outLinks.Put(3, 8, 8)
+			outLinks.Put(4, 7, 8)
+			outLinks.Put(5, 1, 9)
+			outLinks.Put(6, 3, 9)
+			outLinks.Put(7, 2, 9)
+			outLinks.Put(8, 1, 0)
 			//outLinks.Put(9,3,0)
 
-			inLinks.Put(1,0,1)
-			inLinks.Put(3,0,1)
-			inLinks.Put(4,1,1)
-			inLinks.Put(8,2,2)
-			inLinks.Put(8,3,2)
-			inLinks.Put(9,4,2)
-			inLinks.Put(2,5,3)
-			inLinks.Put(7,6,3)
-			inLinks.Put(9,7,3)
-			inLinks.Put(5,8,0)
-			inLinks.Put(6,9,0)
+			inLinks.Put(1, 0, 1)
+			inLinks.Put(3, 0, 1)
+			inLinks.Put(4, 1, 1)
+			inLinks.Put(8, 2, 2)
+			inLinks.Put(8, 3, 2)
+			inLinks.Put(9, 4, 2)
+			inLinks.Put(2, 5, 3)
+			inLinks.Put(7, 6, 3)
+			inLinks.Put(9, 7, 3)
+			inLinks.Put(5, 8, 0)
+			inLinks.Put(6, 9, 0)
 
-			inLinks.Put(5,0,4)
-			inLinks.Put(6,0,4)
-			inLinks.Put(7,1,4)
-			inLinks.Put(5,2,5)
-			inLinks.Put(1,3,5)
-			inLinks.Put(5,4,5)
-			inLinks.Put(6,5,6)
-			inLinks.Put(9,6,6)
-			inLinks.Put(0,7,6)
-			inLinks.Put(0,8,0)
-			inLinks.Put(4,9,0)
+			inLinks.Put(5, 0, 4)
+			inLinks.Put(6, 0, 4)
+			inLinks.Put(7, 1, 4)
+			inLinks.Put(5, 2, 5)
+			inLinks.Put(1, 3, 5)
+			inLinks.Put(5, 4, 5)
+			inLinks.Put(6, 5, 6)
+			inLinks.Put(9, 6, 6)
+			inLinks.Put(0, 7, 6)
+			inLinks.Put(0, 8, 0)
+			inLinks.Put(4, 9, 0)
 
-			inLinks.Put(4,0,7)
-			inLinks.Put(9,0,7)
-			inLinks.Put(8,1,7)
-			inLinks.Put(4,2,8)
-			inLinks.Put(8,3,8)
-			inLinks.Put(7,4,8)
-			inLinks.Put(1,5,9)
-			inLinks.Put(3,6,9)
-			inLinks.Put(2,7,9)
-			inLinks.Put(1,8,0)
+			inLinks.Put(4, 0, 7)
+			inLinks.Put(9, 0, 7)
+			inLinks.Put(8, 1, 7)
+			inLinks.Put(4, 2, 8)
+			inLinks.Put(8, 3, 8)
+			inLinks.Put(7, 4, 8)
+			inLinks.Put(1, 5, 9)
+			inLinks.Put(3, 6, 9)
+			inLinks.Put(2, 7, 9)
+			inLinks.Put(1, 8, 0)
 			//inLinks.Put(3,9,0)
 
 			fmt.Println("outLinks: ", outLinks)
@@ -127,7 +127,7 @@ func RunBenchCPUCmd() *cobra.Command {
 			//	stakes = append(stakes, uint64((i+1)*200))
 			//}
 			for i, _ := range stakes {
-				stakes[i] = uint64((i+1)*200)
+				stakes[i] = uint64((i + 1) * 200)
 			}
 
 			fmt.Println("Graph open data: ", "time", time.Since(start))
@@ -180,7 +180,7 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			start = time.Now()
 			for i, f64 := range rank {
-				rankUint[i] = uint64(f64*1e10)
+				rankUint[i] = uint64(f64 * 1e10)
 			}
 			fmt.Println("Rank converting to uint: ", "time", time.Since(start))
 			fmt.Println("Ranks []float64: ", rank)
@@ -196,8 +196,8 @@ func RunBenchCPUCmd() *cobra.Command {
 			fmt.Println("Entropy calculation: ", "time", time.Since(start))
 
 			start = time.Now()
-			for i,e64 := range ent {
-				entUint[i] = uint64(e64*1e10)
+			for i, e64 := range ent {
+				entUint[i] = uint64(e64 * 1e10)
 			}
 			fmt.Println("Entropy converting to uint: ", "time", time.Since(start))
 			fmt.Println("Entropy []float64: ", ent)
@@ -207,13 +207,13 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			start = time.Now()
 			for i, _ := range rank {
-				light[i] = rank[i]*ent[i]
+				light[i] = rank[i] * ent[i]
 			}
 			fmt.Println("Light calculation: ", "time", time.Since(start))
 
 			start = time.Now()
 			for i, l64 := range light {
-				lightUint[i] = uint64(l64*1e10)
+				lightUint[i] = uint64(l64 * 1e10)
 			}
 			fmt.Println("Light converting to uint: ", "time", time.Since(start))
 
@@ -228,7 +228,7 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			start = time.Now()
 			for i, k64 := range karma {
-				karmaUint[i] = uint64(k64*1e10)
+				karmaUint[i] = uint64(k64 * 1e10)
 			}
 			fmt.Println("Karma converting to uint: ", "time", time.Since(start))
 
@@ -292,7 +292,6 @@ func RunBenchCPUCmd() *cobra.Command {
 			fmt.Println("Karma constructing merkle tree: ", "time", time.Since(start))
 			fmt.Printf("Karma merkle root hash: %x\n", khash)
 
-
 			fmt.Println("---------------------------------")
 			fmt.Println("Prepare mocked data for CPU-GPU results cross check validation")
 			start = time.Now()
@@ -308,8 +307,7 @@ func RunBenchCPUCmd() *cobra.Command {
 	return cmd
 }
 
-
-func karmaCalc(outLinks Links, inLinks Links, stakes []uint64, light []float64, karma []float64) (float64) {
+func karmaCalc(outLinks Links, inLinks Links, stakes []uint64, light []float64, karma []float64) float64 {
 	k := float64(0)
 
 	for from := range outLinks {
@@ -320,9 +318,9 @@ func karmaCalc(outLinks Links, inLinks Links, stakes []uint64, light []float64, 
 		for to := range outLinks[from] {
 			users := outLinks[from][to]
 			for user := range users {
-				w := float64(stakes[user])/float64(ois)
-				karma[user] += w*float64(light[from])
-				k += w*float64(light[from])
+				w := float64(stakes[user]) / float64(ois)
+				karma[user] += w * float64(light[from])
+				k += w * float64(light[from])
 				//fmt.Println("USER:", user,"|",from,"->",to,"| S:", stakes[user], "| TLS:", ois, "| K:", w*float64(light[from]))
 			}
 		}
@@ -332,7 +330,7 @@ func karmaCalc(outLinks Links, inLinks Links, stakes []uint64, light []float64, 
 	return k
 }
 
-func entropy(outLinks Links, inLinks Links, stakes []uint64, ent []float64) (float64) {
+func entropy(outLinks Links, inLinks Links, stakes []uint64, ent []float64) float64 {
 	e := float64(0)
 
 	for from := range outLinks {
@@ -343,8 +341,24 @@ func entropy(outLinks Links, inLinks Links, stakes []uint64, ent []float64) (flo
 			users := outLinks[from][to]
 			for user := range users {
 				w := float64(stakes[user]) / float64(ois)
-				e -= w*math.Log2(w)
-				ent[from] -= w*math.Log2(w)
+				e -= w * math.Log2(w)
+				ent[from] -= w * math.Log2(w)
+				//fmt.Println("LINK:", from,"->",to,"| USER:", user, "| LS:", stakes[user], "| TLS:", ois, "| W:", w,"| E:", -w*math.Log2(w))
+			}
+		}
+		//fmt.Println("--------\n")
+	}
+
+	for from := range inLinks {
+		outStake := getOverallOutLinksStake(outLinks, stakes, from)
+		inStake := getOverallOutLinksStake(inLinks, stakes, from)
+		ois := outStake + inStake
+		for to := range inLinks[from] {
+			users := inLinks[from][to]
+			for user := range users {
+				w := float64(stakes[user]) / float64(ois)
+				e -= w * math.Log2(w)
+				ent[from] -= w * math.Log2(w)
 				//fmt.Println("LINK:", from,"->",to,"| USER:", user, "| LS:", stakes[user], "| TLS:", ois, "| W:", w,"| E:", -w*math.Log2(w))
 			}
 		}
@@ -471,4 +485,3 @@ func GetSortedInLinks(inLinks Links, cid CidNumber) (CidLinks, []CidNumber, bool
 
 	return links, numbers, true
 }
-

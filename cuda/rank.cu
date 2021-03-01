@@ -175,7 +175,7 @@ void mulArrays(
     double *output
 ) {
     int tx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tx < size) output[tx] = __dmul_rn(in1[tx],in2[tx]);
+    if (tx < size) output[tx] = __dmul_rn(in1[tx], in2[tx]);
 }
 
 
@@ -185,12 +185,12 @@ void mulArrays(
 /*********************************************************/
 __global__ void sumArrays(
     uint64_t size,
-    uint64_t *in1,
-    uint64_t *in2,
-    uint64_t *output
+    double *in1,
+    double *in2,
+    double *output
 ) {
     int tx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tx < size) output[tx] = in1[tx] + in2[tx];
+    if (tx < size) output[tx] = __dadd_rn(in1[tx], in2[tx]);
 }
 
 /*********************************************************/
@@ -409,28 +409,66 @@ extern "C" {
             d_inLinksCount0, d_inLinksUsers0, d_cidsTotalInStakes
         );
 
+        // cudaFree(d_inLinksStartIndex0);
+        // cudaFree(d_inLinksCount0);
+        // cudaFree(d_inLinksUsers0);
+
+        printSize(usageOffset);
+        
+        /*-----------*/
+        printf("DEV ENTROPY - ENTROPY OUT\n");
+
+        double *d_entropy_out;
+        cudaMalloc(&d_entropy_out, cidsSize*sizeof(double));
+        cudaMemcpy(d_entropy_out, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        calculateNodeEntropy<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_stakes, d_outLinksStartIndex,
+            d_outLinksCount, d_outLinksUsers, d_cidsTotalOutStakes, d_cidsTotalInStakes, d_entropy_out
+        );
+        // cudaMemcpy(entropy, d_entropy, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
+        
+        printSize(usageOffset);
+        
+        /*-----------*/
+
+        printf("DEV ENTROPY - ENTROPY IN\n");
+
+        double *d_entropy_in;
+        cudaMalloc(&d_entropy_in, cidsSize*sizeof(double));
+        cudaMemcpy(d_entropy_in, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        calculateNodeEntropy<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_stakes, d_inLinksStartIndex0,
+            d_inLinksCount0, d_inLinksUsers0, d_cidsTotalOutStakes, d_cidsTotalInStakes, d_entropy_in
+        );
+        // cudaMemcpy(entropy, d_entropy, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
+        
+        // TODO Refactor steps, optimize allocation
         cudaFree(d_inLinksStartIndex0);
         cudaFree(d_inLinksCount0);
         cudaFree(d_inLinksUsers0);
 
         printSize(usageOffset);
-        
+
+                
         /*-----------*/
-        printf("DEV ENTROPY - ENTROPY\n");
+        printf("SUM ENTROPY - IN+OUT\n");
 
         double *d_entropy;
         cudaMalloc(&d_entropy, cidsSize*sizeof(double));
         cudaMemcpy(d_entropy, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
 
-        calculateNodeEntropy<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
-            cidsSize, d_stakes, d_outLinksStartIndex,
-            d_outLinksCount, d_outLinksUsers, d_cidsTotalOutStakes, d_cidsTotalInStakes, d_entropy
+        sumArrays<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_entropy_out, d_entropy_in, d_entropy
         );
-        cudaMemcpy(entropy, d_entropy, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
-        
+
+        cudaFree(d_entropy_out);
+        cudaFree(d_entropy_in);
+
         printSize(usageOffset);
-        
         /*-----------*/
+
         printf("LOCAL WEIGHTS\n");
 
         double *d_cyberlinksLocalWeights;
