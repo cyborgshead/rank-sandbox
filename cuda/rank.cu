@@ -463,6 +463,8 @@ extern "C" {
             cidsSize, d_entropy_out, d_entropy_in, d_entropy
         );
 
+        cudaMemcpy(entropy, d_entropy, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
+
         cudaFree(d_entropy_out);
         cudaFree(d_entropy_in);
 
