@@ -34,8 +34,10 @@ func RunBenchGPUCmd() *cobra.Command {
 			memUsageOffset := mem.Alloc
 			base := uint64(1048576)
 
-			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
-			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
+			//stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
+			//cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
+			stakesCount := int64(6)
+			cidsCount := int64(21)
 			dampingFactor, _ := strconv.ParseFloat(args[2], 64)
 			tolerance, _ := strconv.ParseFloat(args[3], 64)
 			debug, _ := strconv.ParseBool(args[4])
@@ -49,13 +51,78 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start := time.Now()
 
-			outLinks := make(map[CidNumber]CidLinks)
-			inLinks := make(map[CidNumber]CidLinks)
+			//outLinks := make(map[CidNumber]CidLinks)
+			//inLinks := make(map[CidNumber]CidLinks)
+			outLinks := make(Links)
+			inLinks := make(Links)
 			stakes := make([]uint64, stakesCount)
 
-			readStakesFromBytesFile(&stakes, "./stakes.data")
-			readLinksFromBytesFile(&outLinks, "./outLinks.data")
-			readLinksFromBytesFile(&inLinks, "./inLinks.data")
+			//readStakesFromBytesFile(&stakes, "./stakes.data")
+			//readLinksFromBytesFile(&outLinks, "./outLinks.data")
+			//readLinksFromBytesFile(&inLinks, "./inLinks.data")
+
+			outLinks.Put(8, 9, 0)
+			outLinks.Put(9, 10, 0)
+			outLinks.Put(8, 7, 0)
+			outLinks.Put(7, 6, 0)
+			outLinks.Put(20, 19, 0)
+			outLinks.Put(4, 3, 0)
+			outLinks.Put(6, 5, 1)
+			outLinks.Put(20, 5, 1)
+			outLinks.Put(4, 5, 1)
+			outLinks.Put(19, 18, 1)
+			outLinks.Put(17, 18, 1)
+			outLinks.Put(10, 11, 1)
+			outLinks.Put(12, 11, 1)
+			outLinks.Put(0, 14, 1)
+			outLinks.Put(3, 2, 2)
+			outLinks.Put(17, 2, 2)
+			outLinks.Put(16, 2, 2)
+			outLinks.Put(16, 13, 2)
+			outLinks.Put(12, 13, 2)
+			outLinks.Put(15, 13, 2)
+			outLinks.Put(15, 1, 2)
+			outLinks.Put(0, 1, 2)
+			outLinks.Put(14, 13, 3)
+			outLinks.Put(14, 1, 3)
+			outLinks.Put(2, 1, 4)
+			outLinks.Put(11, 18, 5)
+
+			// ---
+
+			inLinks.Put(9, 8, 0)
+			inLinks.Put(10, 9, 0)
+			inLinks.Put(7, 8, 0)
+			inLinks.Put(6, 7, 0)
+			inLinks.Put(19, 20, 0)
+			inLinks.Put(3, 4, 0)
+			inLinks.Put(5, 6, 1)
+			inLinks.Put(5, 20, 1)
+			inLinks.Put(5, 4, 1)
+			inLinks.Put(18, 19, 1)
+			inLinks.Put(18, 17, 1)
+			inLinks.Put(11, 10, 1)
+			inLinks.Put(11, 12, 1)
+			inLinks.Put(14, 0, 1)
+			inLinks.Put(2, 3, 2)
+			inLinks.Put(2, 17, 2)
+			inLinks.Put(2, 16, 2)
+			inLinks.Put(13, 16, 2)
+			inLinks.Put(13, 12, 2)
+			inLinks.Put(13, 15, 2)
+			inLinks.Put(1, 15, 2)
+			inLinks.Put(1, 0, 2)
+			inLinks.Put(13, 14, 3)
+			inLinks.Put(1, 14, 3)
+			inLinks.Put(1, 2, 4)
+			inLinks.Put(18, 11, 5)
+
+			stakes[0] = uint64(4)
+			stakes[1] = uint64(6)
+			stakes[2] = uint64(8)
+			stakes[3] = uint64(12)
+			stakes[4] = uint64(16)
+			stakes[5] = uint64(9)
 
 			fmt.Println("Graph open data: ", "time", time.Since(start))
 
@@ -76,6 +143,7 @@ func RunBenchGPUCmd() *cobra.Command {
 			inLinksCount := make([]uint32, cidsCount)
 			outLinksCount := make([]uint32, cidsCount)
 			inLinksOuts := make([]uint64, 0)
+			outLinksIns := make([]uint64, 0)
 			inLinksUsers := make([]uint64, 0)
 			outLinksUsers := make([]uint64, 0)
 
@@ -100,14 +168,25 @@ func RunBenchGPUCmd() *cobra.Command {
 					linksCount += uint64(inLinksCount[i])
 				}
 
-				if outLinks, ok := outLinks[CidNumber(i)]; ok {
-					for _, accs := range outLinks {
-						outLinksCount[i] += uint32(len(accs))
-						for acc := range accs {
+				if outLinks, sortedCids, ok := GetSortedInLinks(outLinks, CidNumber(i)); ok {
+					for _, cid := range sortedCids {
+						outLinksCount[i] += uint32(len(outLinks[cid]))
+						for acc := range outLinks[cid] {
+							outLinksIns = append(outLinksIns, uint64(cid))
 							outLinksUsers = append(outLinksUsers, uint64(acc))
 						}
 					}
+					// linksCount += uint64(inLinksCount[i])
 				}
+
+				// if outLinks, ok := outLinks[CidNumber(i)]; ok {
+				// 	for _, accs := range outLinks {
+				// 		outLinksCount[i] += uint32(len(accs))
+				// 		for acc := range accs {
+				// 			outLinksUsers = append(outLinksUsers, uint64(acc))
+				// 		}
+				// 	}
+				// }
 			}
 			fmt.Println("Links amount", linksCount)
 			fmt.Println("Stakes amount", len(stakes))
@@ -131,6 +210,8 @@ func RunBenchGPUCmd() *cobra.Command {
 			cInLinksCount := (*C.uint)(&inLinksCount[0])
 			cOutLinksCount := (*C.uint)(&outLinksCount[0])
 
+			cOutLinksIns := (*C.ulong)(&outLinksIns[0])
+
 			cInLinksOuts := (*C.ulong)(&inLinksOuts[0])
 			cInLinksUsers := (*C.ulong)(&inLinksUsers[0])
 			cOutLinksUsers := (*C.ulong)(&outLinksUsers[0])
@@ -145,7 +226,7 @@ func RunBenchGPUCmd() *cobra.Command {
 			cKarma := (*C.double)(&karma[0])
 			C.calculate_rank(
 				cStakes, cStakesSize, cCidsSize, cLinksSize,
-				cInLinksCount, cOutLinksCount,
+				cInLinksCount, cOutLinksCount, cOutLinksIns,
 				cInLinksOuts, cInLinksUsers, cOutLinksUsers,
 				cRank, cDampingFactor, cTolerance, cEntropy, cLight, cKarma,
 			)

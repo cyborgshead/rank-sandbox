@@ -193,6 +193,86 @@ __global__ void sumArrays(
     if (tx < size) output[tx] = __dadd_rn(in1[tx], in2[tx]);
 }
 
+// TODO: use for in out stakes
+/*********************************************************/
+/* KERNEL: CALCULATE SI                          */
+/*********************************************************/
+__global__ void calculate_SI(
+    uint64_t size,
+    uint64_t *out,
+    uint64_t *in,
+    double *d_si,
+    double damping
+) {
+    int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tx < size) d_si[tx] = __dadd_rn(__dmul_rn(damping, __ull2double_rn(in[tx])), __dmul_rn(1-damping, __ull2double_rn(out[tx])));
+}
+
+/*****************************************************/
+/* KERNEL: CALCULATE CIDS TOTAL ENTROPY              */
+/*****************************************************/
+__global__
+void calculate_QJ(
+    uint64_t cidsSize,
+    uint64_t *outLinksStartIndex, uint32_t *outLinksCount,   /*array index - cid index*/
+    uint64_t *inLinksOuts,  
+    double *si,
+    double damping,
+    /*returns*/ double *qj
+) {
+
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+    uint64_t stride = blockDim.x * gridDim.x;
+
+    for (uint64_t i = index; i < cidsSize; i += stride) {
+        // double nodeLinksEntropy = 0;
+        // uint64_t oil = cidsTotalOutStakes[i] + cidsTotalInStakes[i]; 
+        // uint64_t oil = cidsTotalOutStakes[i];
+        // double qj_node = 0;
+        for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
+            qj[i] = __dadd_rn(qj[i],__dmul_rn(damping,si[inLinksOuts[j]]));
+
+        //    double weight = ddiv_rn(&stakes[outLinksUsers[j]], &oil);
+        //    double logw = log2(weight);
+        //    nodeLinksEntropy -= __dmul_rn(weight,logw);
+            // qj_node += __dmul_rn(damping,si[j]);
+        }
+        // qj[i] = qj_node;
+    }
+}
+
+__global__
+void calculate_ENT(
+    uint64_t cidsSize,
+    uint64_t *outLinksStartIndex, uint32_t *outLinksCount,   /*array index - cid index*/
+    uint64_t *inLinksOuts,  
+    double *si,
+    double *qj,
+    /*returns*/ double *ent
+) {
+
+	int index = blockIdx.x * blockDim.x + threadIdx.x;
+    uint64_t stride = blockDim.x * gridDim.x;
+
+    for (uint64_t i = index; i < cidsSize; i += stride) {
+        // double nodeLinksEntropy = 0;
+        // uint64_t oil = cidsTotalOutStakes[i] + cidsTotalInStakes[i]; 
+        // uint64_t oil = cidsTotalOutStakes[i];
+        // double qj_node = 0;
+        for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
+            double weight = __ddiv_rn(si[i],qj[inLinksOuts[j]]);
+            double logw = log2(weight);
+            ent[i] = __dadd_rn(ent[i],fabs(__dmul_rn(weight, logw)));
+
+        //    double weight = ddiv_rn(&stakes[outLinksUsers[j]], &oil);
+        //    double logw = log2(weight);
+        //    nodeLinksEntropy -= __dmul_rn(weight,logw);
+            // qj_node += __dmul_rn(damping,si[j]);
+        }
+        // qj[i] = qj_node;
+    }
+}
+
 /*********************************************************/
 /* KERNEL: CALCULATE COMPRESSED IN LINKS COUNT FOR CIDS  */
 /*********************************************************/
@@ -282,7 +362,7 @@ void calculateKarma(
     double *light,
     /*returns*/ double *karma
 ) {
-    for (uint64_t i = 0; i < cidsSize; i++) {
+    for (uint64_t i = 0; i < cidsSize; i++) {          
         for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
             karma[outLinksUsers[j]] += light[i]*cyberlinksLocalWeights[j];
         }
@@ -328,6 +408,7 @@ extern "C" {
         uint64_t *stakes, uint64_t stakesSize,                    /* User stakes and corresponding array size */
         uint64_t cidsSize, uint64_t linksSize,                    /* Cids count */
         uint32_t *inLinksCount, uint32_t *outLinksCount,          /* array index - cid index*/
+        uint64_t *outLinksIns,
         uint64_t *inLinksOuts, uint64_t *inLinksUsers,            /*all incoming links from all users*/
         uint64_t *outLinksUsers,                                  /*all outgoing links from all users*/
         double *rank,                                             /* array index - cid index*/
@@ -388,7 +469,7 @@ extern "C" {
 
         // DEV ENTROPY (in+out stake)
         /*-------------------------------------------------------------------*/
-        printf("DEV ENTROPY - IN STAKE\n");
+        printf("DEV ENTROPY 222- IN STAKE\n");
 
         uint64_t *d_inLinksStartIndex0;
         uint32_t *d_inLinksCount0;
@@ -413,10 +494,26 @@ extern "C" {
         // cudaFree(d_inLinksCount0);
         // cudaFree(d_inLinksUsers0);
 
+        // thrust::device_ptr<uint64_t> outP(d_cidsTotalOutStakes);
+        // thrust::device_ptr<uint64_t> inP(d_cidsTotalInStakes);
+        // for(uint64_t i = 0; i < 21; i++) {
+        //     printf("[%d] = %d | %d\n",i,(uint64_t)*(outP+i), (uint64_t)*(inP+i));
+        // }
         printSize(usageOffset);
-        
-        /*-----------*/
-        printf("DEV ENTROPY - ENTROPY OUT\n");
+
+
+        double *d_si;
+        cudaMalloc(&d_si, cidsSize*sizeof(double));
+        cudaMemcpy(d_si, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        calculate_SI<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_cidsTotalOutStakes, d_cidsTotalInStakes, d_si, dampingFactor);
+        thrust::device_ptr<double> SI(d_si);
+        for(uint64_t i = 0; i < 21; i++) {
+            printf("[%d] = %f\n",i,(double)*(SI+i));
+        }
+
+        printf("DEV ENTROPY 222- ENTROPY OUT\n");
 
         double *d_entropy_out;
         cudaMalloc(&d_entropy_out, cidsSize*sizeof(double));
@@ -445,9 +542,9 @@ extern "C" {
         // cudaMemcpy(entropy, d_entropy, cidsSize * sizeof(double), cudaMemcpyDeviceToHost);
         
         // TODO Refactor steps, optimize allocation
-        cudaFree(d_inLinksStartIndex0);
-        cudaFree(d_inLinksCount0);
-        cudaFree(d_inLinksUsers0);
+        // cudaFree(d_inLinksStartIndex0);
+        // cudaFree(d_inLinksCount0);
+        // cudaFree(d_inLinksUsers0);
 
         printSize(usageOffset);
 
@@ -514,6 +611,81 @@ extern "C" {
         printSize(usageOffset);
         /*-------------------------------------------------------------------*/
 
+        printf("-______________in____________\n");
+
+        double *d_qj_in;
+        cudaMalloc(&d_qj_in, cidsSize*sizeof(double));
+        cudaMemset(d_qj_in, 0, cidsSize*sizeof(double));
+        // cudaMemcpy(d_qj_in, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        calculate_QJ<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_inLinksStartIndex,
+            d_inLinksCount, d_inLinksOuts, d_si, 0.8f, d_qj_in);
+        
+        thrust::device_ptr<double> QJ_IN(d_qj_in);
+        for(uint64_t i = 0; i < 21; i++) {
+            printf("[%d] = %f\n",i,(double)*(QJ_IN+i));
+        }
+
+        printf("-_______________out__________\n");
+
+        uint64_t *d_outLinksIns;
+        cudaMalloc(&d_outLinksIns,linksSize*sizeof(uint64_t));
+        cudaMemcpy(d_outLinksIns,outLinksIns,linksSize*sizeof(uint64_t), cudaMemcpyHostToDevice);
+
+        double *d_qj_out;
+        cudaMalloc(&d_qj_out, cidsSize*sizeof(double));
+        cudaMemset(d_qj_out, 0, cidsSize*sizeof(double));
+        // cudaMemcpy(d_qj_out, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        calculate_QJ<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_outLinksStartIndex,
+            d_outLinksCount, d_outLinksIns, d_si, 0.2f, d_qj_out);
+        
+        thrust::device_ptr<double> QJ_OUT(d_qj_out);
+        for(uint64_t i = 0; i < 21; i++) {
+            printf("[%d] = %f\n",i,(double)*(QJ_OUT+i));
+        }
+
+        printf("-_____________sum____________\n");
+
+        double *d_qj_sum;
+        cudaMalloc(&d_qj_sum, cidsSize*sizeof(double));
+        cudaMemcpy(d_qj_sum, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        sumArrays<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_qj_out, d_qj_in, d_qj_sum
+        );
+        thrust::device_ptr<double> QJ(d_qj_sum);
+        for(uint64_t i = 0; i < 21; i++) {
+            printf("[%d] = %f\n",i,(double)*(QJ+i));
+        }
+
+                printf("-______________in-ent____________\n");
+
+        double *d_ent_chi;
+        cudaMalloc(&d_ent_chi, cidsSize*sizeof(double));
+        cudaMemset(d_ent_chi, 0, cidsSize*sizeof(double));
+        // cudaMemcpy(d_qj_in, entropy, cidsSize*sizeof(double), cudaMemcpyHostToDevice);
+
+        calculate_ENT<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+            cidsSize, d_inLinksStartIndex,
+            d_inLinksCount, d_inLinksOuts, d_si, d_qj_sum, d_ent_chi);
+
+        calculate_ENT<<<CUDA_BLOCKS_NUMBER,CUDA_THREAD_BLOCK_SIZE>>>(
+        cidsSize, d_outLinksStartIndex,
+        d_outLinksCount, d_outLinksIns, d_si, d_qj_sum, d_ent_chi);
+        
+        thrust::device_ptr<double> ENT(d_ent_chi);
+        for(uint64_t i = 0; i < 21; i++) {
+            printf("[%d] = %f\n",i,(double)*(ENT+i));
+        }
+
+        cudaFree(d_si);
+        cudaFree(d_qj_in);
+        cudaFree(d_qj_out);
+        cudaFree(d_qj_sum);
+        cudaFree(d_ent_chi);
 
 
         // STEP3: Calculate compressed in links start indexes
@@ -647,10 +819,10 @@ extern "C" {
         cudaMalloc(&d_karma, stakesSize*sizeof(double));
         cudaMemcpy(d_karma, karma, stakesSize*sizeof(double), cudaMemcpyHostToDevice);
         calculateKarma<<<1,1>>>(
-            cidsSize, 
-            d_outLinksStartIndex, 
+            cidsSize,
+            d_outLinksStartIndex,
             d_outLinksCount,
-            d_outLinksUsers,      
+            d_outLinksUsers,
             d_cyberlinksLocalWeights,
             d_light,
             d_karma
@@ -663,7 +835,7 @@ extern "C" {
         cudaFree(d_outLinksStartIndex);
         cudaFree(d_outLinksCount);
         cudaFree(d_outLinksUsers);
-        
+
         cudaFree(d_light);
         cudaFree(d_karma);
 
