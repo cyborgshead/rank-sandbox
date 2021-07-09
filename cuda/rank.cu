@@ -183,7 +183,7 @@ __global__
 void sum_stake_with_damping_by_links(
     uint64_t cidsSize,
     uint64_t *linksStartIndex, uint32_t *linksCount, /*array index - cid index*/
-    uint64_t *linksOuts, // linksIns                 /*all incoming links from all users*/
+    uint64_t *linksOuts, // linksIns                 /*all incoming or outgoing links from all users*/
     double *swd,                                     /*array index - cid index*/
     double damping,
     /*returns*/ double *sumswd                       /*array index - cid index*/
@@ -206,7 +206,7 @@ __global__
 void calculate_entropy_by_links(
     uint64_t cidsSize,
     uint64_t *linksStartIndex, uint32_t *linksCount, /*array index - cid index*/
-    uint64_t *linksOuts, // linksIns                 /*all incoming links from all users*/
+    uint64_t *linksOuts, // linksIns                 /*all incoming or outgoing links from all users*/
     double *swd,                                     /*array index - cid index*/
     double *d_sumswd,                                /*array index - cid index*/
     /*returns*/ double *entropy                      /*array index - cid index*/
@@ -218,6 +218,7 @@ void calculate_entropy_by_links(
     for (uint64_t i = index; i < cidsSize; i += stride) {
         for (uint64_t j = linksStartIndex[i]; j < linksStartIndex[i] + linksCount[i]; j++) {
             double weight = __ddiv_rn(swd[i], d_sumswd[linksOuts[j]]);
+            if (isnan(weight)) { continue; }
             double logw = log2(weight);
             entropy[i] = __dadd_rn(entropy[i], fabs(__dmul_rn(weight, logw)));
         }
@@ -284,6 +285,7 @@ void get_compressed_in_links(
             uint64_t oppositeCid = inLinksOuts[inLinksStartIndex[i]];
             uint64_t compressedLinkStake = stakes[inLinksUsers[inLinksStartIndex[i]]];
             double weight = ddiv_rn(&compressedLinkStake, &cidsTotalOutStakes[oppositeCid]);
+            if (isnan(weight)) { weight = 0; }
             compressedInLinks[compressedLinksIndex] = CompressedInLink {oppositeCid, weight};
             continue;
         }
@@ -296,6 +298,7 @@ void get_compressed_in_links(
             if(j == lastLinkIndex || inLinksOuts[j] != inLinksOuts[j+1]) {
                 uint64_t oppositeCid = inLinksOuts[j];
                 double weight = ddiv_rn(&compressedLinkStake, &cidsTotalOutStakes[oppositeCid]);
+                if (isnan(weight)) { weight = 0; }
                 compressedInLinks[compressedLinksIndex] = CompressedInLink {oppositeCid, weight};
                 compressedLinksIndex++;
                 compressedLinkStake=0;

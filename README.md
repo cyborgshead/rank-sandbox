@@ -18,8 +18,9 @@ Check Makefile for internals
 ## Example
 ```
 ## cross validation
-./cyberrank run-bench-cpu 10 10 0.85 0.001
-./cyberrank run-bench-gpu 10 10 0.85 0.001 true
+./cyberrank gen-graph 10 10 20 1
+./cyberrank run-bench-cpu 10 20 0.85 0.001 true
+./cyberrank run-bench-gpu 10 20 0.85 0.001 true
 
 ## play with gpu
 ./cyberrank gen-graph 10000 1000 1000000 1

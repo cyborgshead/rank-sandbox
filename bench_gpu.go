@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"runtime"
 	"strconv"
 	"time"
@@ -88,8 +89,6 @@ func RunBenchGPUCmd() *cobra.Command {
 			// outLinks.Put(2, 1, 4)
 			// outLinks.Put(11, 18, 5)
 
-			// // ---
-
 			// inLinks.Put(9, 8, 0)
 			// inLinks.Put(10, 9, 0)
 			// inLinks.Put(7, 8, 0)
@@ -134,12 +133,12 @@ func RunBenchGPUCmd() *cobra.Command {
 			linksCount := uint64(0)
 			rank := make([]float64, cidsCount)
 			rankUint := make([]uint64, cidsCount)
-			entropy := make([]float64, cidsCount)
-			entropyUint := make([]uint64, cidsCount)
+			ent := make([]float64, cidsCount)
+			entUint := make([]uint64, cidsCount)
 			light := make([]float64, cidsCount)
-			lightUint := make([]uint64, cidsCount)
 			karma := make([]float64, stakesCount)
 			karmaUint := make([]uint64, stakesCount)
+
 			inLinksCount := make([]uint32, cidsCount)
 			outLinksCount := make([]uint32, cidsCount)
 			inLinksOuts := make([]uint64, 0)
@@ -221,7 +220,7 @@ func RunBenchGPUCmd() *cobra.Command {
 
 			start = time.Now()
 			cRank := (*C.double)(&rank[0])
-			cEntropy := (*C.double)(&entropy[0])
+			cEntropy := (*C.double)(&ent[0])
 			cLight := (*C.double)(&light[0])
 			cKarma := (*C.double)(&karma[0])
 			C.calculate_rank(
@@ -230,148 +229,141 @@ func RunBenchGPUCmd() *cobra.Command {
 				cInLinksOuts, cInLinksUsers, cOutLinksUsers,
 				cRank, cDampingFactor, cTolerance, cEntropy, cLight, cKarma,
 			)
-			fmt.Println("Rank calculation", "time", time.Since(start))
-
+			fmt.Println("Processing", "duration", time.Since(start).String())
 			runtime.ReadMemStats(mem)
 			fmt.Println("-[GO] Memory:", (mem.Alloc-memUsageOffset)/base)
 
-			fmt.Println("---------------------------------")
+			fmt.Println("---------------------------------\n")
 			fmt.Println("STEP 3: Data and stats")
 
 			start = time.Now()
-			r := float64(0)
-			for _, r64 := range rank {
-				r = r + r64
-			}
-			fmt.Println("Ranks reduction: ", "time", time.Since(start))
-			fmt.Printf("RanksSum: %f\n", r)
-
-			fmt.Println("-------------")
-
-			start = time.Now()
-			for i, r64 := range rank {
-				rankUint[i] = uint64(r64 * 1e20)
-			}
-			fmt.Println("Rank converting to uint: ", "time", time.Since(start))
-			if debug {
-				fmt.Println("Ranks []float64: ", rank)
-				fmt.Println("Ranks []uint64: ", rankUint)
-			}
-
-			fmt.Println("-------------")
-
-			start = time.Now()
-			rankTree := merkle.NewTree(sha256.New(), true)
-			for _, ru64 := range rankUint {
+			rankTreeFloat := merkle.NewTree(sha256.New(), true)
+			for _, f64 := range rank {
 				rankBytes := make([]byte, 8)
-				binary.LittleEndian.PutUint64(rankBytes, ru64)
-				rankTree.Push(rankBytes)
+				binary.LittleEndian.PutUint64(rankBytes, math.Float64bits(f64))
+				rankTreeFloat.Push(rankBytes)
 			}
-			rhash := rankTree.RootHash()
-			fmt.Println("Rank constructing merkle tree: ", "time", time.Since(start))
-			fmt.Printf("Rank merkle root hash: %x\n", rhash)
+			rankFloatHash := rankTreeFloat.RootHash()
+			fmt.Println("[FLOAT] Rank Tree build", "duration", time.Since(start))
+			fmt.Printf("[FLOAT] Rank Tree hash: %x\n", rankFloatHash)
 
-			fmt.Println("-------------")
+			rankSum := float64(0)
+			for _, r := range rank {
+				rankSum += r
+			}
+			fmt.Printf("Ranks sum: %f\n", rankSum)
 
 			start = time.Now()
-			e := float64(0)
-			for _, e64 := range entropy {
-				e += e64
+			for i, f64 := range rank {
+				rankUint[i] = uint64(f64 * 1e15)
 			}
-			fmt.Println("Entropy reduction: ", "time", time.Since(start))
-			fmt.Printf("Entropy: %f\n", e)
-
-			fmt.Println("-------------")
+			fmt.Println("Rank to integer", "duration", time.Since(start).String())
 
 			start = time.Now()
-			for i, eu64 := range entropy {
-				entropyUint[i] = uint64(eu64 * 1e20)
+			rankTreeUint := merkle.NewTree(sha256.New(), true)
+			for _, r64 := range rankUint {
+				rankBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(rankBytes, r64)
+				rankTreeUint.Push(rankBytes)
 			}
-			fmt.Println("Entropy converting to uint: ", "time", time.Since(start))
+			rankUintHash := rankTreeUint.RootHash()
+			fmt.Println("[UINT] Rank Tree build", "duration", time.Since(start))
+			fmt.Printf("[UINT] Rank Tree hash: %x\n", rankUintHash)
+
 			if debug {
-				fmt.Println("Entropy []float64: ", entropy)
-				fmt.Println("Entropy []uint64: ", entropyUint)
+				fmt.Println("---------------------------------\n")
+				fmt.Println("[FLOAT] Ranks: ", rank)
+				fmt.Println("---------------------------------\n")
+				fmt.Println("[UINT] Ranks: ", rankUint)
 			}
 
-			fmt.Println("-------------")
+			fmt.Println("---------------------------------\n")
 
 			start = time.Now()
-			entropyTree := merkle.NewTree(sha256.New(), true)
-			for _, e64 := range entropyUint {
+			entropyTreeFloat := merkle.NewTree(sha256.New(), true)
+			for _, f64 := range ent {
 				entropyBytes := make([]byte, 8)
-				binary.LittleEndian.PutUint64(entropyBytes, e64)
-				entropyTree.Push(entropyBytes)
+				binary.LittleEndian.PutUint64(entropyBytes, math.Float64bits(f64))
+				entropyTreeFloat.Push(entropyBytes)
 			}
-			ehash := entropyTree.RootHash()
-			fmt.Println("Entropy constructing merkle tree: ", "time", time.Since(start))
-			fmt.Printf("Entropy merkle root hash: %x\n", ehash)
+			entropyFloatHash := entropyTreeFloat.RootHash()
+			fmt.Println("[FLOAT] Entropy tree", "duration", time.Since(start))
+			fmt.Printf("[FLOAT] Entropy hash: %x\n", entropyFloatHash)
 
-			fmt.Println("-------------")
+			entropySum := float64(0)
+			for _, r := range ent {
+				entropySum += r
+			}
+			fmt.Printf("Entropy sum: %f\n", entropySum)
 
 			start = time.Now()
-			for i, l64 := range light {
-				lightUint[i] = uint64(l64 * 1e20)
+			for i, f64 := range ent {
+				entUint[i] = uint64(f64 * 1e15)
 			}
-			fmt.Println("Light converting to uint: ", "time", time.Since(start))
+			fmt.Println("Entropy to integer", "duration", time.Since(start).String())
+
+			start = time.Now()
+			entropyTreeUint := merkle.NewTree(sha256.New(), true)
+			for _, f64 := range entUint {
+				entropyBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(entropyBytes, f64)
+				entropyTreeUint.Push(entropyBytes)
+			}
+			entropyUintHash := entropyTreeUint.RootHash()
+			fmt.Println("[UINT] Entropy tree", "duration", time.Since(start))
+			fmt.Printf("[UINT] Entropy hash: %x\n", entropyUintHash)
+
 			if debug {
-				fmt.Println("Light []float64: ", light)
-				fmt.Println("Light []uint64: ", lightUint)
+				fmt.Println("---------------------------------\n")
+				fmt.Println("[FLOAT] Entropy: ", ent)
+				fmt.Println("---------------------------------\n")
+				fmt.Println("[UINT] Entropy: ", entUint)
 			}
 
-			fmt.Println("-------------")
+			fmt.Println("---------------------------------\n")
 
 			start = time.Now()
-			lightTree := merkle.NewTree(sha256.New(), true)
-			for _, l64 := range lightUint {
-				lightBytes := make([]byte, 8)
-				binary.LittleEndian.PutUint64(lightBytes, l64)
-				lightTree.Push(lightBytes)
-			}
-			lhash := lightTree.RootHash()
-			fmt.Println("Light constructing merkle tree: ", "time", time.Since(start))
-			fmt.Printf("Light merkle root hash: %x\n", lhash)
-
-			fmt.Println("-------------")
-
-			start = time.Now()
-			for i, k64 := range karma {
-				karmaUint[i] = uint64(k64 * 1e20)
-			}
-			fmt.Println("Karma converting to uint: ", "time", time.Since(start))
-			if debug {
-				fmt.Println("Karma []float64: ", karma)
-				fmt.Println("Karma []uint64: ", karmaUint)
-			}
-
-			fmt.Println("-------------")
-
-			start = time.Now()
-			karmaTree := merkle.NewTree(sha256.New(), true)
-			for _, l64 := range karmaUint {
+			karmaTreeFloat := merkle.NewTree(sha256.New(), true)
+			for _, f64 := range karma {
 				karmaBytes := make([]byte, 8)
-				binary.LittleEndian.PutUint64(karmaBytes, l64)
-				karmaTree.Push(karmaBytes)
+				binary.LittleEndian.PutUint64(karmaBytes, math.Float64bits(f64))
+				karmaTreeFloat.Push(karmaBytes)
 			}
-			khash := karmaTree.RootHash()
-			fmt.Println("Karma constructing merkle tree: ", "time", time.Since(start))
-			fmt.Printf("Karma merkle root hash: %x\n", khash)
+			karmaFloatHash := karmaTreeFloat.RootHash()
+			fmt.Println("[FLOAT] Karma tree", "duration", time.Since(start))
+			fmt.Printf("[FLOAT] Karma hash: %x\n", karmaFloatHash)
 
-			fmt.Println("-------------")
+			karmaSum := float64(0)
+			for _, r := range karma {
+				karmaSum += r
+			}
+			fmt.Printf("Karma sum: %f\n", karmaSum)
 
 			start = time.Now()
-			km := float64(0)
-			for _, km64 := range karma {
-				km += km64
+			for i, f64 := range karma {
+				karmaUint[i] = uint64(f64 * 1e15)
 			}
-			fmt.Println("Karma reduction: ", "time", time.Since(start))
-			fmt.Printf("KarmaSum: %f\n", km)
+			fmt.Println("Karma to integer", "duration", time.Since(start).String())
 
-			fmt.Println("-------------")
+			start = time.Now()
+			karmaTreeUint := merkle.NewTree(sha256.New(), true)
+			for _, f64 := range karmaUint {
+				karmaBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(karmaBytes, f64)
+				karmaTreeUint.Push(karmaBytes)
+			}
+			karmaUintHash := karmaTreeUint.RootHash()
+			fmt.Println("[UINT] Karma tree", "duration", time.Since(start))
+			fmt.Printf("[UINT] Karma hash: %x\n", karmaUintHash)
 
-			runtime.ReadMemStats(mem)
-			fmt.Println("-[GO] Memory:", (mem.Alloc-memUsageOffset)/base)
+			if debug {
+				fmt.Println("---------------------------------\n")
+				fmt.Println("[FLOAT] Karma: ", karma)
+				fmt.Println("---------------------------------\n")
+				fmt.Println("[UINT] Karma: ", karmaUint)
+			}
 
-			fmt.Println("---------------------------------")
+			fmt.Println("---------------------------------\n")
 
 			return nil
 		},
