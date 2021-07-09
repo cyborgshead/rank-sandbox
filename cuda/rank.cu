@@ -310,7 +310,8 @@ void get_compressed_in_links(
 /* SEQUENTIAL LOGIC -> CALCULATE ON CPU                     */
 /* RETURNS KARMA FOR ALL ACCOUNTS                           */
 /************************************************************/
-__host__
+// __host__
+__global__
 void calculate_karma(
     uint64_t cidsSize,
     uint64_t *outLinksStartIndex, uint32_t *outLinksCount,
@@ -321,7 +322,8 @@ void calculate_karma(
 ) {
     for (uint64_t i = 0; i < cidsSize; i++) {          
         for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
-            karma[outLinksUsers[j]] += light[i]*cyberlinksLocalWeights[j];
+            // karma[outLinksUsers[j]] += light[i]*cyberlinksLocalWeights[j];
+            karma[outLinksUsers[j]] = __dadd_rn(karma[outLinksUsers[j]], __dmul_rn(light[i],cyberlinksLocalWeights[j]));
             // printf("[%d][%d] = %lf | %lf\n", i, j, karma[outLinksUsers[j]], karma[outLinksUsers[j]]);
         }
     }
@@ -714,25 +716,34 @@ extern "C" {
         /*-------------------------------------------------------------------*/
         printf("STEP9: Calculate Karma\n");
 
-        // double *d_karma;
-        // cudaMalloc(&d_karma, stakesSize*sizeof(double));
-        // cudaMemcpy(d_karma, karma, stakesSize*sizeof(double), cudaMemcpyHostToDevice);
+        double *d_karma; //
+        cudaMalloc(&d_karma, stakesSize*sizeof(double)); //
+        cudaMemcpy(d_karma, karma, stakesSize*sizeof(double), cudaMemcpyHostToDevice); //
 
-        double *cyberlinksLocalWeights = (double*) malloc(linksSize*sizeof(double));
-        cudaMemcpy(cyberlinksLocalWeights, d_cyberlinksLocalWeights, linksSize*sizeof(double), cudaMemcpyDeviceToHost);
+        // double *cyberlinksLocalWeights = (double*) malloc(linksSize*sizeof(double));
+        // cudaMemcpy(cyberlinksLocalWeights, d_cyberlinksLocalWeights, linksSize*sizeof(double), cudaMemcpyDeviceToHost);
 
-        calculate_karma(
+        // calculate_karma(
+        //     cidsSize,
+        //     outLinksStartIndex,
+        //     outLinksCount,
+        //     outLinksUsers,
+        //     cyberlinksLocalWeights,
+        //     light,
+        //     karma
+        // );
+        calculate_karma<<<1,1>>>(
             cidsSize,
-            outLinksStartIndex,
-            outLinksCount,
-            outLinksUsers,
-            cyberlinksLocalWeights,
-            light,
-            karma
+            d_outLinksStartIndex,
+            d_outLinksCount,
+            d_outLinksUsers,
+            d_cyberlinksLocalWeights,
+            d_light,
+            d_karma
         );
 
-        // cudaMemcpy(karma, d_karma, stakesSize * sizeof(double), cudaMemcpyDeviceToHost);
-        free(cyberlinksLocalWeights);
+        cudaMemcpy(karma, d_karma, stakesSize * sizeof(double), cudaMemcpyDeviceToHost);
+        // free(cyberlinksLocalWeights);
 
         printSize(usageOffset);
         /*-----------------*/
@@ -746,6 +757,7 @@ extern "C" {
         cudaFree(d_outLinksCount);
         cudaFree(d_outLinksUsers);
         cudaFree(d_light);
+        cudaFree(d_karma);
         // cudaFree(d_karma);
         cudaFree(d_cyberlinksLocalWeights);
 

@@ -3,8 +3,8 @@ package main
 import "C"
 import (
 	"bytes"
-	//"crypto/sha256"
-	//"encoding/binary"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/gob"
 	"fmt"
 	"io/ioutil"
@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	//"github.com/cybercongress/cyberd/merkle"
+	"github.com/cybercongress/cyberd/merkle"
 	"github.com/spf13/cobra"
 )
 
@@ -25,10 +25,10 @@ func RunBenchCPUCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			//stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
-			//cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
-			stakesCount := int64(6)
-			cidsCount := int64(21)
+			stakesCount, _ := strconv.ParseInt(args[0], 10, 64)
+			cidsCount, _ := strconv.ParseInt(args[1], 10, 64)
+			// stakesCount := int64(6)
+			// cidsCount := int64(21)
 			dampingFactor, _ := strconv.ParseFloat(args[2], 64)
 			tolerance, _ := strconv.ParseFloat(args[3], 64)
 
@@ -41,15 +41,15 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			start := time.Now()
 
-			//outLinks := make(map[CidNumber]CidLinks)
-			//inLinks := make(map[CidNumber]CidLinks)
-			outLinks := make(Links)
-			inLinks := make(Links)
+			outLinks := make(map[CidNumber]CidLinks)
+			inLinks := make(map[CidNumber]CidLinks)
+			// outLinks := make(Links)
+			// inLinks := make(Links)
 			stakes := make([]uint64, stakesCount)
 
-			//readStakesFromBytesFile(&stakes, "./stakes.data")
-			//readLinksFromBytesFile(&outLinks, "./outLinks.data")
-			//readLinksFromBytesFile(&inLinks, "./inLinks.data")
+			readStakesFromBytesFile(&stakes, "./stakes.data")
+			readLinksFromBytesFile(&outLinks, "./outLinks.data")
+			readLinksFromBytesFile(&inLinks, "./inLinks.data")
 
 			//./cyberrank run-bench-cpu 10 10 0.85 0.001
 
@@ -124,77 +124,80 @@ func RunBenchCPUCmd() *cobra.Command {
 			//inLinks.Put(2, 7, 9)
 			//inLinks.Put(1, 8, 0)
 			//inLinks.Put(3,9,0)
-			outLinks.Put(8, 9, 0)
-			outLinks.Put(9, 10, 0)
-			outLinks.Put(8, 7, 0)
-			outLinks.Put(7, 6, 0)
-			outLinks.Put(20, 19, 0)
-			outLinks.Put(4, 3, 0)
-			outLinks.Put(6, 5, 1)
-			outLinks.Put(20, 5, 1)
-			outLinks.Put(4, 5, 1)
-			outLinks.Put(19, 18, 1)
-			outLinks.Put(17, 18, 1)
-			outLinks.Put(10, 11, 1)
-			outLinks.Put(12, 11, 1)
-			outLinks.Put(0, 14, 1)
-			outLinks.Put(3, 2, 2)
-			outLinks.Put(17, 2, 2)
-			outLinks.Put(16, 2, 2)
-			outLinks.Put(16, 13, 2)
-			outLinks.Put(12, 13, 2)
-			outLinks.Put(15, 13, 2)
-			outLinks.Put(15, 1, 2)
-			outLinks.Put(0, 1, 2)
-			outLinks.Put(14, 13, 3)
-			outLinks.Put(14, 1, 3)
-			outLinks.Put(2, 1, 4)
-			outLinks.Put(11, 18, 5)
 
-			// ---
+			// --------------
 
-			inLinks.Put(9,  8, 0)
-			inLinks.Put(10, 9,  0)
-			inLinks.Put(7,  8, 0)
-			inLinks.Put(6,  7, 0)
-			inLinks.Put(19, 20,  0)
-			inLinks.Put(3,  4, 0)
-			inLinks.Put(5,  6, 1)
-			inLinks.Put(5,  20, 1)
-			inLinks.Put(5,  4, 1)
-			inLinks.Put(18, 19,  1)
-			inLinks.Put(18, 17,  1)
-			inLinks.Put(11, 10,  1)
-			inLinks.Put(11, 12,  1)
-			inLinks.Put(14, 0,  1)
-			inLinks.Put(2,  3, 2)
-			inLinks.Put(2,  17, 2)
-			inLinks.Put(2,  16, 2)
-			inLinks.Put(13, 16,  2)
-			inLinks.Put(13, 12,  2)
-			inLinks.Put(13, 15,  2)
-			inLinks.Put(1,  15, 2)
-			inLinks.Put(1,  0, 2)
-			inLinks.Put(13, 14,  3)
-			inLinks.Put(1,  14, 3)
-			inLinks.Put(1,  2, 4)
-			inLinks.Put(18, 11, 5)
+			// outLinks.Put(8, 9, 0)
+			// outLinks.Put(9, 10, 0)
+			// outLinks.Put(8, 7, 0)
+			// outLinks.Put(7, 6, 0)
+			// outLinks.Put(20, 19, 0)
+			// outLinks.Put(4, 3, 0)
+			// outLinks.Put(6, 5, 1)
+			// outLinks.Put(20, 5, 1)
+			// outLinks.Put(4, 5, 1)
+			// outLinks.Put(19, 18, 1)
+			// outLinks.Put(17, 18, 1)
+			// outLinks.Put(10, 11, 1)
+			// outLinks.Put(12, 11, 1)
+			// outLinks.Put(0, 14, 1)
+			// outLinks.Put(3, 2, 2)
+			// outLinks.Put(17, 2, 2)
+			// outLinks.Put(16, 2, 2)
+			// outLinks.Put(16, 13, 2)
+			// outLinks.Put(12, 13, 2)
+			// outLinks.Put(15, 13, 2)
+			// outLinks.Put(15, 1, 2)
+			// outLinks.Put(0, 1, 2)
+			// outLinks.Put(14, 13, 3)
+			// outLinks.Put(14, 1, 3)
+			// outLinks.Put(2, 1, 4)
+			// outLinks.Put(11, 18, 5)
 
-			stakes[0] = uint64(4)
-			stakes[1] = uint64(6)
-			stakes[2] = uint64(8)
-			stakes[3] = uint64(12)
-			stakes[4] = uint64(16)
-			stakes[5] = uint64(9)
+			// // ---
 
-			fmt.Println("outLinks: ", outLinks)
+			// inLinks.Put(9,  8, 0)
+			// inLinks.Put(10, 9,  0)
+			// inLinks.Put(7,  8, 0)
+			// inLinks.Put(6,  7, 0)
+			// inLinks.Put(19, 20,  0)
+			// inLinks.Put(3,  4, 0)
+			// inLinks.Put(5,  6, 1)
+			// inLinks.Put(5,  20, 1)
+			// inLinks.Put(5,  4, 1)
+			// inLinks.Put(18, 19,  1)
+			// inLinks.Put(18, 17,  1)
+			// inLinks.Put(11, 10,  1)
+			// inLinks.Put(11, 12,  1)
+			// inLinks.Put(14, 0,  1)
+			// inLinks.Put(2,  3, 2)
+			// inLinks.Put(2,  17, 2)
+			// inLinks.Put(2,  16, 2)
+			// inLinks.Put(13, 16,  2)
+			// inLinks.Put(13, 12,  2)
+			// inLinks.Put(13, 15,  2)
+			// inLinks.Put(1,  15, 2)
+			// inLinks.Put(1,  0, 2)
+			// inLinks.Put(13, 14,  3)
+			// inLinks.Put(1,  14, 3)
+			// inLinks.Put(1,  2, 4)
+			// inLinks.Put(18, 11, 5)
+
+			// stakes[0] = uint64(4)
+			// stakes[1] = uint64(6)
+			// stakes[2] = uint64(8)
+			// stakes[3] = uint64(12)
+			// stakes[4] = uint64(16)
+			// stakes[5] = uint64(9)
+
+			// fmt.Println("outLinks: ", outLinks)
 
 			//for i := 0; i < int(stakesCount); i++ {
 			//	stakes = append(stakes, uint64((i+1)*200))
 			//}
-			//for i, _ := range stakes {
-			//	stakes[i] = uint64((i + 1) * 200)
-			//}
+			// for i, _ := range stakes {
+			// 	stakes[i] = uint64((i + 1) * 200)
+			// }
 
 			fmt.Println("Graph open data: ", "time", time.Since(start))
 			fmt.Println("---------------------------------")
@@ -203,10 +206,10 @@ func RunBenchCPUCmd() *cobra.Command {
 			rankUint := make([]uint64, cidsCount)
 			ent := make([]float64, cidsCount)
 			entUint := make([]uint64, cidsCount)
-			//light := make([]float64, cidsCount)
-			//lightUint := make([]uint64, cidsCount)
-			//karma := make([]float64, cidsCount)
-			//karmaUint := make([]uint64, cidsCount)
+			light := make([]float64, cidsCount)
+			lightUint := make([]uint64, cidsCount)
+			karma := make([]float64, stakesCount)
+			karmaUint := make([]uint64, stakesCount)
 			defaultRank := (1.0 - dampingFactor) / float64(cidsCount)
 			danglingNodesSize := uint64(0)
 
@@ -240,17 +243,17 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			rs := float64(0)
 			for _, r := range rank {
-				rs += r
+				rs = rs + r
 			}
 			fmt.Printf("RanksSum: %f\n", rs)
 
 			start = time.Now()
 			for i, f64 := range rank {
-				rankUint[i] = uint64(f64 * 1e10)
+				rankUint[i] = uint64(f64 * 1e20)
 			}
 			fmt.Println("Rank converting to uint: ", "time", time.Since(start))
-			fmt.Println("Ranks []float64: ", rank)
-			fmt.Println("Ranks []uint64: ", rankUint)
+			// fmt.Println("Ranks []float64: ", rank)
+			// fmt.Println("Ranks []uint64: ", rankUint)
 
 			fmt.Println("---------------------------------")
 
@@ -258,113 +261,120 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			e := entropy(outLinks, inLinks, stakes, ent, cidsCount, dampingFactor)
 			fmt.Printf("EntropySum: %f\n", e)
+			start = time.Now()
+			e1 := float64(0)
+			for _, e64 := range ent {
+				e1 += e64
+			}
+			fmt.Println("Entropy reduction: ", "time", time.Since(start))
+			fmt.Printf("Entropy: %f\n", e1)
 
 			fmt.Println("Entropy calculation: ", "time", time.Since(start))
 
 			start = time.Now()
 			for i, e64 := range ent {
-				entUint[i] = uint64(e64 * 1e10)
+				entUint[i] = uint64(e64 * 1e20)
 			}
 			fmt.Println("Entropy converting to uint: ", "time", time.Since(start))
-			fmt.Println("Entropy []float64: ", ent)
-			fmt.Println("Entropy []uint64: ", entUint)
+			// fmt.Println("Entropy []float64: ", ent)
+			// fmt.Println("Entropy []uint64: ", entUint)
 
 			fmt.Println("---------------------------------")
 
-			//start = time.Now()
-			//for i, _ := range rank {
-			//	light[i] = rank[i] * ent[i]
-			//}
-			//fmt.Println("Light calculation: ", "time", time.Since(start))
-			//
-			//start = time.Now()
-			//for i, l64 := range light {
-			//	lightUint[i] = uint64(l64 * 1e10)
-			//}
-			//fmt.Println("Light converting to uint: ", "time", time.Since(start))
-			//
-			//fmt.Println("Light []float64: ", light)
-			//fmt.Println("Light []uint64: ", lightUint)
-			//
-			//fmt.Println("---------------------------------")
-			//
-			//start = time.Now()
-			//k := karmaCalc(outLinks, inLinks, stakes, light, karma)
-			//fmt.Println("Karma calculation: ", "time", time.Since(start))
-			//
-			//start = time.Now()
-			//for i, k64 := range karma {
-			//	karmaUint[i] = uint64(k64 * 1e10)
-			//}
-			//fmt.Println("Karma converting to uint: ", "time", time.Since(start))
-			//
-			//fmt.Println("KarmaSum []float64: ", k)
-			//fmt.Println("Karma []float64: ", karma)
-			//fmt.Println("Karma []uint64: ", karmaUint)
-			//
-			//fmt.Println("---------------------------------")
-			//
-			//fmt.Println("Stake []uint64: ", stakes)
-			//
-			//fmt.Println("---------------------------------")
-			//
-			//start = time.Now()
-			//rankTree := merkle.NewTree(sha256.New(), true)
-			//for _, r64 := range rankUint {
-			//	rankBytes := make([]byte, 8)
-			//	binary.LittleEndian.PutUint64(rankBytes, r64)
-			//	rankTree.Push(rankBytes)
-			//}
-			//rhash := rankTree.RootHash()
-			//fmt.Println("Rank constructing merkle tree: ", "time", time.Since(start))
-			//fmt.Printf("Rank merkle root hash: %x\n", rhash)
-			//
-			//fmt.Println("---------------------------------")
-			//
-			//start = time.Now()
-			//entropyTree := merkle.NewTree(sha256.New(), true)
-			//for _, e64 := range entUint {
-			//	entropyBytes := make([]byte, 8)
-			//	binary.LittleEndian.PutUint64(entropyBytes, e64)
-			//	entropyTree.Push(entropyBytes)
-			//}
-			//ehash := entropyTree.RootHash()
-			//fmt.Println("Entropy constructing merkle tree: ", "time", time.Since(start))
-			//fmt.Printf("Entropy merkle root hash: %x\n", ehash)
-			//
-			//fmt.Println("---------------------------------")
-			//
-			//start = time.Now()
-			//lightTree := merkle.NewTree(sha256.New(), true)
-			//for _, l64 := range lightUint {
-			//	lightBytes := make([]byte, 8)
-			//	binary.LittleEndian.PutUint64(lightBytes, l64)
-			//	lightTree.Push(lightBytes)
-			//}
-			//lhash := lightTree.RootHash()
-			//fmt.Println("Light constructing merkle tree: ", "time", time.Since(start))
-			//fmt.Printf("Light merkle root hash: %x\n", lhash)
-			//
-			//fmt.Println("---------------------------------")
-			//
-			//start = time.Now()
-			//karmaTree := merkle.NewTree(sha256.New(), true)
-			//for _, k64 := range karmaUint {
-			//	karmaBytes := make([]byte, 8)
-			//	binary.LittleEndian.PutUint64(karmaBytes, k64)
-			//	karmaTree.Push(karmaBytes)
-			//}
-			//khash := karmaTree.RootHash()
-			//fmt.Println("Karma constructing merkle tree: ", "time", time.Since(start))
-			//fmt.Printf("Karma merkle root hash: %x\n", khash)
-			//
-			//fmt.Println("---------------------------------")
-			//fmt.Println("Prepare mocked data for CPU-GPU results cross check validation")
-			//start = time.Now()
-			//saveStakesToBytesFile(&stakes, "./stakes.data")
-			//saveLinksToBytesFile(&outLinks, "./outLinks.data")
-			//saveLinksToBytesFile(&inLinks, "./inLinks.data")
-			//fmt.Println("OutLinks, InLinks and Stakes saved in: ", "time", time.Since(start))
+			start = time.Now()
+			for i, _ := range rank {
+				light[i] = rank[i] * ent[i]
+			}
+			fmt.Println("Light calculation: ", "time", time.Since(start))
+
+			start = time.Now()
+			for i, l64 := range light {
+				lightUint[i] = uint64(l64 * 1e20)
+			}
+			fmt.Println("Light converting to uint: ", "time", time.Since(start))
+
+			// fmt.Println("Light []float64: ", light)
+			// fmt.Println("Light []uint64: ", lightUint)
+
+			fmt.Println("---------------------------------")
+
+			start = time.Now()
+			k := karmaCalc(outLinks, inLinks, stakes, light, karma)
+			fmt.Println("Karma calculation: ", "time", time.Since(start))
+
+			start = time.Now()
+			for i, k64 := range karma {
+				karmaUint[i] = uint64(k64 * 1e20)
+			}
+			fmt.Println("Karma converting to uint: ", "time", time.Since(start))
+
+			fmt.Println("KarmaSum []float64: ", k)
+			// fmt.Println("Karma []float64: ", karma)
+			// fmt.Println("Karma []uint64: ", karmaUint)
+
+			fmt.Println("---------------------------------")
+
+			// fmt.Println("Stake []uint64: ", stakes)
+
+			fmt.Println("---------------------------------")
+
+			start = time.Now()
+			rankTree := merkle.NewTree(sha256.New(), true)
+			for _, r64 := range rankUint {
+				rankBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(rankBytes, r64)
+				rankTree.Push(rankBytes)
+			}
+			rhash := rankTree.RootHash()
+			fmt.Println("Rank constructing merkle tree: ", "time", time.Since(start))
+			fmt.Printf("Rank merkle root hash: %x\n", rhash)
+
+			fmt.Println("---------------------------------")
+
+			start = time.Now()
+			entropyTree := merkle.NewTree(sha256.New(), true)
+			for _, e64 := range entUint {
+				entropyBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(entropyBytes, e64)
+				entropyTree.Push(entropyBytes)
+			}
+			ehash := entropyTree.RootHash()
+			fmt.Println("Entropy constructing merkle tree: ", "time", time.Since(start))
+			fmt.Printf("Entropy merkle root hash: %x\n", ehash)
+
+			fmt.Println("---------------------------------")
+
+			start = time.Now()
+			lightTree := merkle.NewTree(sha256.New(), true)
+			for _, l64 := range lightUint {
+				lightBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(lightBytes, l64)
+				lightTree.Push(lightBytes)
+			}
+			lhash := lightTree.RootHash()
+			fmt.Println("Light constructing merkle tree: ", "time", time.Since(start))
+			fmt.Printf("Light merkle root hash: %x\n", lhash)
+
+			fmt.Println("---------------------------------")
+
+			start = time.Now()
+			karmaTree := merkle.NewTree(sha256.New(), true)
+			for _, k64 := range karmaUint {
+				karmaBytes := make([]byte, 8)
+				binary.LittleEndian.PutUint64(karmaBytes, k64)
+				karmaTree.Push(karmaBytes)
+			}
+			khash := karmaTree.RootHash()
+			fmt.Println("Karma constructing merkle tree: ", "time", time.Since(start))
+			fmt.Printf("Karma merkle root hash: %x\n", khash)
+
+			// fmt.Println("---------------------------------")
+			// fmt.Println("Prepare mocked data for CPU-GPU results cross check validation")
+			// start = time.Now()
+			// saveStakesToBytesFile(&stakes, "./stakes.data")
+			// saveLinksToBytesFile(&outLinks, "./outLinks.data")
+			// saveLinksToBytesFile(&inLinks, "./inLinks.data")
+			// fmt.Println("OutLinks, InLinks and Stakes saved in: ", "time", time.Since(start))
 
 			return nil
 		},
@@ -378,9 +388,9 @@ func karmaCalc(outLinks Links, inLinks Links, stakes []uint64, light []float64, 
 
 	for from := range outLinks {
 		outStake := getOverallOutLinksStake(outLinks, stakes, from)
-		inStake := getOverallOutLinksStake(inLinks, stakes, from)
+		// inStake := getOverallOutLinksStake(inLinks, stakes, from)
 		//fmt.Println("FROM:",from,"OUT/IN ->", outStake,"/",inStake)
-		ois := outStake + inStake
+		ois := outStake
 		for to := range outLinks[from] {
 			users := outLinks[from][to]
 			for user := range users {
@@ -401,7 +411,7 @@ func karmaCalc(outLinks Links, inLinks Links, stakes []uint64, light []float64, 
 
 func entropy(outLinks Links, inLinks Links, stakes []uint64, ent []float64, cidsCount int64, dampingFactor float64) float64 {
 	e := float64(0)
-	dampingFactor = 0.8
+	// dampingFactor = 0.8
 	si := make([]float64, cidsCount)
 	qj := make([]float64, cidsCount)
 	for i, _ := range si {
@@ -412,19 +422,19 @@ func entropy(outLinks Links, inLinks Links, stakes []uint64, ent []float64, cids
 
 	for i, _ := range qj {
 		for to := range inLinks[CidNumber(i)] {
-			qj[i] += dampingFactor*si[to]
+			qj[i] += dampingFactor * si[to]
 		}
 		for to := range outLinks[CidNumber(i)] {
-			qj[i] += (1-dampingFactor)*si[to]
+			qj[i] += (1 - dampingFactor) * si[to]
 		}
 	}
 
 	for i, _ := range ent {
 		for to := range inLinks[CidNumber(i)] {
-			ent[i] += math.Abs(-si[i]/qj[to] * math.Log2(si[i]/qj[to]))
+			ent[i] += math.Abs(-si[i] / qj[to] * math.Log2(si[i]/qj[to]))
 		}
 		for to := range outLinks[CidNumber(i)] {
-			ent[i] += math.Abs(-si[i]/qj[to] * math.Log2(si[i]/qj[to]))
+			ent[i] += math.Abs(-si[i] / qj[to] * math.Log2(si[i]/qj[to]))
 		}
 	}
 
