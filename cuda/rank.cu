@@ -47,6 +47,7 @@ void run_rank_iteration(
 
         double ksum = 0;
         for (uint64_t j = inLinksStartIndex[i]; j < inLinksStartIndex[i] + inLinksCount[i]; j++) {
+           if (inLinks[j].weight == 0) {continue;}
            ksum = prevRank[inLinks[j].fromIndex] * inLinks[j].weight + ksum;
         }
         rank[i] = ksum * dampingFactor + defaultRankWithCorrection;
@@ -217,8 +218,9 @@ void calculate_entropy_by_links(
 
     for (uint64_t i = index; i < cidsSize; i += stride) {
         for (uint64_t j = linksStartIndex[i]; j < linksStartIndex[i] + linksCount[i]; j++) {
+            if (swd[i] == 0 || d_sumswd[linksOuts[j]] == 0) { continue; }
             double weight = __ddiv_rn(swd[i], d_sumswd[linksOuts[j]]);
-            if (isnan(weight)) { continue; }
+            // if (isnan(weight)) { continue; }
             double logw = log2(weight);
             entropy[i] = __dadd_rn(entropy[i], fabs(__dmul_rn(weight, logw)));
         }

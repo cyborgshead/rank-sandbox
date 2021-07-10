@@ -56,6 +56,8 @@ func RunBenchCPUCmd() *cobra.Command {
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
 			readLinksFromBytesFile(&inLinks, "./inLinks.data")
+			stakes[0] = 0
+			stakes[8] = 0
 
 			// outLinks.Put(8, 9, 0)
 			// outLinks.Put(9, 10, 0)
@@ -165,7 +167,6 @@ func RunBenchCPUCmd() *cobra.Command {
 
 			entropy(outLinks, inLinks, stakes, ent, cidsCount, dampingFactor)
 			karmas(outLinks, inLinks, stakes, rank, ent, karma)
-
 
 			fmt.Println("Processing", "duration", time.Since(start).String())
 			runtime.ReadMemStats(mem)
@@ -301,7 +302,7 @@ func RunBenchCPUCmd() *cobra.Command {
 				fmt.Println("[UINT] Karma: ", karmaUint)
 			}
 
-			fmt.Println("---------------------------------\n")
+			fmt.Println("CPU------------------------------\n")
 
 			return nil
 		},
@@ -345,13 +346,19 @@ func entropy(outLinks Links, inLinks Links, stakes []uint64, entropy []float64, 
 	}
 
 	for i, _ := range entropy {
-		if swd[i] == 0 { continue }
+		if swd[i] == 0 {
+			continue
+		}
 		for to := range inLinks[CidNumber(i)] {
-			if sumswd[to] == 0 { continue }
+			if sumswd[to] == 0 {
+				continue
+			}
 			entropy[i] += math.Abs(-swd[i] / sumswd[to] * math.Log2(swd[i]/sumswd[to]))
 		}
 		for to := range outLinks[CidNumber(i)] {
-			if sumswd[to] == 0 { continue }
+			if sumswd[to] == 0 {
+				continue
+			}
 			entropy[i] += math.Abs(-swd[i] / sumswd[to] * math.Log2(swd[i]/sumswd[to]))
 		}
 	}
@@ -371,10 +378,13 @@ func step(inLinks Links, outLinks Links, stakes []uint64, defaultRankWithCorrect
 			for _, j := range sortedCids {
 				linkStake := getOverallLinkStake(outLinks, stakes, j, cid)
 				jCidOutStake := getOverallOutLinksStake(outLinks, stakes, j)
-				weight := float64(linkStake) / float64(jCidOutStake)
-				if math.IsNaN(weight) {
-					weight = float64(0)
+				if linkStake == 0 || jCidOutStake == 0 {
+					continue
 				}
+				weight := float64(linkStake) / float64(jCidOutStake)
+				// if math.IsNaN(weight) {
+				// 	weight = float64(0)
+				// }
 				ksum = prevrank[j]*weight + ksum //force no-fma here by explicit conversion
 			}
 			rank[cid] = ksum*dampingFactor + defaultRankWithCorrection //force no-fma here by explicit conversion

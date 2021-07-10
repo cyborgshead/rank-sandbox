@@ -61,6 +61,8 @@ func RunBenchGPUCmd() *cobra.Command {
 			readStakesFromBytesFile(&stakes, "./stakes.data")
 			readLinksFromBytesFile(&outLinks, "./outLinks.data")
 			readLinksFromBytesFile(&inLinks, "./inLinks.data")
+			stakes[0] = 0
+			stakes[8] = 0
 
 			// outLinks.Put(8, 9, 0)
 			// outLinks.Put(9, 10, 0)
@@ -363,7 +365,7 @@ func RunBenchGPUCmd() *cobra.Command {
 				fmt.Println("[UINT] Karma: ", karmaUint)
 			}
 
-			fmt.Println("---------------------------------\n")
+			fmt.Println("GPU------------------------------\n")
 
 			return nil
 		},
