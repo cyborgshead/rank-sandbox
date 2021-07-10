@@ -140,6 +140,7 @@ void get_cyberlinks_weight_by_stake(
         uint64_t stake = cidsTotalStakes[i]; 
         for (uint64_t j = linksStartIndex[i]; j < linksStartIndex[i] + linksCount[i]; j++) {
             double weight = ddiv_rn(&stakes[linksUsers[j]], &stake);
+            if (isnan(weight)) { continue; }
             cyberlinksLocalWeights[j] = weight;
         }
     }
@@ -328,6 +329,7 @@ void calculate_karma(
     for (uint64_t i = 0; i < cidsSize; i++) {          
         for (uint64_t j = outLinksStartIndex[i]; j < outLinksStartIndex[i] + outLinksCount[i]; j++) {
             // karma[outLinksUsers[j]] += light[i]*cyberlinksLocalWeights[j];
+                        if (isnan(cyberlinksLocalWeights[j])) {continue;}
             karma[outLinksUsers[j]] = __dadd_rn(karma[outLinksUsers[j]], __dmul_rn(light[i],cyberlinksLocalWeights[j]));
             // printf("[%d][%d] = %lf | %lf\n", i, j, karma[outLinksUsers[j]], karma[outLinksUsers[j]]);
         }
