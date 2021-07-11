@@ -315,12 +315,18 @@ func karmas(outLinks Links, inLinks Links, stakes []uint64, rank []float64, entr
 	for from := range outLinks {
 		stake := getOverallOutLinksStake(outLinks, stakes, from)
 		for to := range outLinks[from] {
+			if stake == 0 {
+				continue
+			}
 			users := outLinks[from][to]
 			for user := range users {
-				w := float64(stakes[user]) / float64(stake)
-				if math.IsNaN(w) {
-					w = float64(0)
+				if stakes[user] == 0 {
+					continue
 				}
+				w := float64(stakes[user]) / float64(stake)
+				// if math.IsNaN(w) {
+				// 	w = float64(0)
+				// }
 				karma[user] += w * float64(rank[from]*entropy[from])
 			}
 		}
