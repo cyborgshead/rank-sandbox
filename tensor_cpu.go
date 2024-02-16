@@ -392,6 +392,15 @@ func tensor_cpu(inLinksCount []uint32, inLinksOuts []uint64, inLinksUsers []uint
 	// == Bonds and Dividends ==
 	// =========================
 
+	//debug
+	not_zero_amount := 0
+	for _, t := range trust {
+		if t > 0 {
+			not_zero_amount++
+		}
+	}
+	println("not_zero_amount", not_zero_amount)
+
 	return trust
 }
 

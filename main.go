@@ -14,6 +14,7 @@ func main() {
 	}
 
 	rootCmd.AddCommand(RunTensorCPUCmd())
+	rootCmd.AddCommand(RunTensorGenCPUCmd())
 	rootCmd.AddCommand(RunBenchCPUCmd())
 	rootCmd.AddCommand(RunBenchGPUCmd())
 	rootCmd.AddCommand(RunGenGraphCmd())
