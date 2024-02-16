@@ -6,7 +6,6 @@ import (
 	"os"
 )
 
-
 func main() {
 
 	var rootCmd = &cobra.Command{
@@ -14,6 +13,7 @@ func main() {
 		Short: "Allows you to run benchmarks of cyberrank",
 	}
 
+	rootCmd.AddCommand(RunTensorCPUCmd())
 	rootCmd.AddCommand(RunBenchCPUCmd())
 	rootCmd.AddCommand(RunBenchGPUCmd())
 	rootCmd.AddCommand(RunGenGraphCmd())

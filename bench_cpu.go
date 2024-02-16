@@ -3,6 +3,7 @@ package main
 import "C"
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/gob"
 	"fmt"
@@ -11,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"time"
-	"crypto/sha256"
 
 	"github.com/cybercongress/cyberd/merkle"
 	"github.com/spf13/cobra"
@@ -77,7 +77,6 @@ func RunBenchCPUCmd() *cobra.Command {
 				steps++
 			}
 			fmt.Println("Rank calculation", "time", time.Since(start))
-
 
 			start = time.Now()
 			merkleTree := merkle.NewTree(sha256.New(), true)
@@ -180,6 +179,7 @@ func readLinksFromBytesFile(links *map[CidNumber]CidLinks, fileName string) {
 
 func readStakesFromBytesFile(stakes *map[AccNumber]uint64, fileName string) {
 	var network bytes.Buffer
+	_stakes := &[]uint64{}
 
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -191,7 +191,16 @@ func readStakesFromBytesFile(stakes *map[AccNumber]uint64, fileName string) {
 	}
 
 	dec := gob.NewDecoder(&network)
-	err = dec.Decode(stakes)
+	err = dec.Decode(_stakes)
+	//println("Stakes: ", _stakes)
+	//println("Stakes: ", len(*_stakes))
+
+	for i, stake := range *_stakes {
+		(*stakes)[AccNumber(i)] = stake
+	}
+	//println("Stakes: ", stakes)
+	//println("Stakes: ", len(*stakes))
+
 	if err != nil {
 		fmt.Printf("Decode error:", err)
 	}
@@ -214,4 +223,3 @@ func GetSortedInLinks(inLinks Links, cid CidNumber) (CidLinks, []CidNumber, bool
 
 	return links, numbers, true
 }
-
